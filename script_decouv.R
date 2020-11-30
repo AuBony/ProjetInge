@@ -1,4 +1,5 @@
 load("data/data_agrocampus.RData")
+#load("~/2020-2021/PROJET-INGE/data_agrocampus.RData")
 
 son <- model_data[, 7:1102506]
 chat <- model_data[,1:6]
@@ -6,3 +7,31 @@ chat <- model_data[,1:6]
 summary(chat)
 table(chat$Cat_name, chat$Session)
 table(chat$Cat_name, chat$Diet)
+
+# INTERVALLE DE TEMPS CHOISI
+dep <- 1
+fin <- 1102500
+pas <- 500
+temps <- seq(from = dep, to = fin, by = pas)
+
+# courbes 1eres lignes
+plot(temps,son[1,temps], type = 'l', xlab = "temps", ylab = "son",
+     main = "Courbe sonore")
+plot(temps,son[2,temps], type = 'l', xlab = "temps", ylab = "son",
+     main = "Courbe sonore")
+plot(temps,son[3,temps], type = 'l', xlab = "temps", ylab = "son",
+     main = "Courbe sonore")
+
+# lignes interessantes (on peut bien entendre crunching sounds)
+chat['32',1:6]
+plot(temps,son['32',temps], type = 'l', xlab = "temps", ylab = "son",
+     main = "Courbe sonore")
+chat['34',1:6]
+plot(temps,son['34',temps], type = 'l', xlab = "temps", ylab = "son",
+     main = "Courbe sonore")
+chat['39',1:6]
+plot(temps,son['39',temps], type = 'l', xlab = "temps", ylab = "son",
+     main = "Courbe sonore")
+chat['40',1:6]
+plot(temps,son['40',temps], type = 'l', xlab = "temps", ylab = "son",
+     main = "Courbe sonore")
