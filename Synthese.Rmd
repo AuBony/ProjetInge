@@ -1,7 +1,64 @@
 ---
 title: "Synthese Mars"
-author: "Audrey Bony"
+author: "Audrey BONY et Anne-Victoire de CROUTTE"
 date: "01/12/2020"
 output: html_document
 ---
+
+Importation des données
+
+```{r}
+load("~/2020-2021/PROJET-INGE/data_agrocampus.RData")
+```
+
+Chargement des packages
+
+```{r}
+library(plotly)
+library(tidyverse)
+```
+
+Séparation du JDD en 2 jeux: un descriptif des expériences, et un avec les données de son
+
+```{r}
+chat <- model_data[,1:6]
+son <- model_data[, 7:1102506]
+```
+
+Fonction de visualisation des courbes
+
+```{r}
+draw_plot <- function(line,pas,dep,fin){
+  dt <- 25/1102500
+  dep <- dep
+  fin <- fin/dt
+  pas <- 500
+  temps <- seq(from = dep, to = fin, by = pas)
+  indice <- temps + 1
+  dta <- data.frame(time = temps[-length(temps)]*dt, 
+                    amplitude = as.integer(son[line,temps]))
+  
+  # graphe
+  p1 <- dta %>% ggplot() +
+    aes(x = time, y = amplitude) +
+    geom_line(size = 0.2) +
+    theme_minimal()
+  
+  p1 <- p1 + annotate("text", x = 23, y = max(dta$amplitude), 
+                      label = paste('nb_bk: ',
+                                    chat[line,'nb_bk'],'\n',
+                                    'nb_bit: ',
+                                    chat[line,'nb_bit']),
+                      colour = 'orange', size = 5)
+  ggplotly(p1)
+}
+```
+
+```{r}
+line = '39'
+pas = 200
+debut = 0
+fin = 25
+draw_plot(line,pas,debut,fin)
+```
 
