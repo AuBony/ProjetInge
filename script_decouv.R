@@ -40,7 +40,7 @@ plot(temps,son['40',temps], type = 'l', xlab = "temps", ylab = "son",
      main = "Courbe sonore")
 
 
-# Seewave
+# Seewave with Notchi
 library(seewave)
 library(tuneR)
 ?seewave
@@ -57,3 +57,17 @@ phaseplot(a)
 acoustat(a)
 afilter(a@left, f = f)
 
+class(a@left)
+
+drawenv(rmnoise(a), f = a@samp.rate)
+
+spec <- meanspec(a@left, f=a@samp.rate)
+res3 <- fpeaks(spec = spec, f = a@samp.rate, nmax = 10, freq = 1 ) 
+
+localpeaks(spec, bands=5)
+#localpeaks(a@left, f = a@samp.rate, bands = 1) très long
+
+w <- colorRampPalette(c("white","white"))
+spectro(a@left, f=a@samp.rate, ovlp=95, palette=w, cont=TRUE, colcont=temp.colors(8), contlevels=seq(-5,0,5), scale=FALSE)
+
+#Noise
