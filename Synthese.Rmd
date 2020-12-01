@@ -13,7 +13,7 @@ load("~/2020-2021/PROJET-INGE/data_agrocampus.RData")
 
 Chargement des packages
 
-```{r}
+```{r, echo = FALSE}
 library(plotly)
 library(tidyverse)
 ```
@@ -56,7 +56,7 @@ draw_plot <- function(line,pas,dep,fin){
 
 ```{r}
 line = '39'
-pas = 200
+pas = 1
 debut = 0
 fin = 25
 draw_plot(line,pas,debut,fin)
