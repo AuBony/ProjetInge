@@ -4,6 +4,9 @@ load("~/2020-2021/PROJET-INGE/data_agrocampus.RData")
 library(plotly)
 library(tidyverse)
 
+# write.table(model_data[c('1','10','32','34','39','40'),], "toy_data.csv", row.names=TRUE, sep=";",dec=",")
+
+toy_data <- model_data[c('1','10','32','34','39','40'),]
 son <- model_data[, 7:1102506]
 chat <- model_data[,1:6]
 
