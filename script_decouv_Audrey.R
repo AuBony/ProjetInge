@@ -103,21 +103,32 @@ a_test@left <- a_rmnoise@left
 play(a_test)
 
   #Données chats
+chat_10 <- a
 chat_32 <- a
 chat_34 <- a
 chat_39 <- a
 chat_40 <- a
 
-chat_32@left <- as.integer(son[32,400000:1102500])
-chat_34@left <- as.integer(son[34,400000:1102500])
-chat_39@left <- as.integer(son[39,400000:1102500])
+chat_10@left <- as.integer(son[10,])
+chat_32@left <- as.integer(son[32,])
+chat_34@left <- as.integer(son[34,])
+chat_39@left <- as.integer(son[39,])
 chat_40@left <- as.integer(son[40,])
 
+play(chat_10)
 play(chat_32)
 play(chat_34)
 play(chat_39)
 play(chat_40)
 
+writeWave(chat_10, "data/chat_10.wav")
+writeWave(chat_32, "data/chat_l32.wav")
+writeWave(chat_34, "data/chat_l34.wav")
+writeWave(chat_39, "data/chat_l39.wav")
+writeWave(chat_40, "data/chat_l40.wav")
+
+chat_32_read <- readWave(filename = "data/chat_32.wav")
+listen(chat_32_read)
 
 chat_1 <- son[1,]
 play(chat_1)
@@ -132,3 +143,45 @@ c@left <- as.integer(son[34,400000:1102500])
 
 class(a@left)
 class(as.integer(son[1, 1:400000]))
+
+# Cours R
+library(tuneR)
+notchi1 <- readWave("data/Notchi 1.wav")
+notchi2 <- readWave('data/Notchi 2.wav')
+
+notchi1
+notchi2
+
+play(notchi1)
+listen(notchi1)
+play(notchi2)
+
+plot(notchi1)
+plot(notchi2)
+
+plot.ts(notchi1@left)
+
+plot(chat_32_read)
+
+par(mfrow = c(2,1))
+notchi1.p <- periodogram(mono(notchi1, 'left'))
+plot(notchi1.p, ylim = c(0,0.004))
+notchi2.p <- periodogram(mono(notchi2, 'left'))
+plot(notchi2.p, ylim = c(0,0.004))
+par(mfrow = c(1,1))
+
+notchi1.p1 <- spec(notchi1, type='h')
+
+notchi2_filtered <- ffilter(notchi2, channel = 1, from = 100, to = 5000, output = "Wave", bandpass = FALSE)
+listen(notchi2_filtered)
+par(mfrow = c(2,1))
+plot(notchi2_filtered)
+plot(notchi2)
+listen(notchi2)
+
+p.notchi2_filetered <- periodogram(mono(notchi2_filtered, 'left'))
+plot(p.notchi2_filetered)
+
+ffilter(wave, f, channel = 1, from = NULL, to = NULL, bandpass = TRUE,
+        custom = NULL, wl = 1024, ovlp = 75, wn = "hanning", fftw = FALSE,
+        rescale=FALSE, listen=FALSE, output="matrix")
