@@ -1,8 +1,11 @@
-load("data/data_agrocampus.RData")
+load("../data/data_agrocampus.RData")
 #load("~/2020-2021/PROJET-INGE/data_agrocampus.RData")
 
 son <- model_data[, 7:1102506]
 chat <- model_data[,1:6]
+
+toy_chat <- chat[1:10,]
+f <- 25/1102500
 
 summary(chat)
 table(chat$Cat_name, chat$Session)
@@ -35,3 +38,22 @@ plot(temps,son['39',temps], type = 'l', xlab = "temps", ylab = "son",
 chat['40',1:6]
 plot(temps,son['40',temps], type = 'l', xlab = "temps", ylab = "son",
      main = "Courbe sonore")
+
+
+# Seewave
+library(seewave)
+library(tuneR)
+?seewave
+a <- readWave("../data/Notchi 2.wav")
+savewav(a)
+seewave(a)
+listen(a)
+acoustat(a)
+ama(a)
+drawenv(a)
+env(a)
+phaseplot(a)
+
+acoustat(a)
+afilter(a@left, f = f)
+
