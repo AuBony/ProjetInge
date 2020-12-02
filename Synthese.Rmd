@@ -22,14 +22,17 @@ library(tidyverse)
 
 ```{r}
 rownames(model_data) <- seq(1, 192, 1)
-chat <- model_data[,1:6]
-son <- model_data[, 7:1102506]
+cat <- model_data[,1:6]
+sound <- model_data[, 7:1102506]
 ```
 
 # Visualisation
 
-## Presentation de l'exp?rience
+## Presentation de l'expérience
 
+```{r, echo = FALSE}
+plot_ly(chat, x = ~nb_bit, y = ~nb_bk, type = "scatter", text = ~paste('Row : ', rownames(chat)))
+```
 
 ## Visualisation des donn?es son
 
