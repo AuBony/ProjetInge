@@ -127,6 +127,8 @@ writeWave(chat_34, "data/chat_l34.wav")
 writeWave(chat_39, "data/chat_l39.wav")
 writeWave(chat_40, "data/chat_l40.wav")
 
+
+
 chat_32_read <- readWave(filename = "data/chat_32.wav")
 listen(chat_32_read)
 
