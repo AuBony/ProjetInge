@@ -19,9 +19,15 @@ listen(croc_wav)
 #On enregistre le son de croc sous la forme d'un data.frame
 croc <- as.integer(cutw(notchi2_wav, from = 4, to = 4.8, f = notchi2_wav@samp.rate))
 
-#
+#Enveloppe du son
+analysis_croc <- acoustat(croc_wav, fraction = c(50) )
+analysis_croc$freq.P1
+analysis_croc$freq.M
+analysis_croc$freq.P2
+analysis_croc$freq.IPR
 
-acoustat(croc_wav)
+par(mfrow = c(1,1))
+env(croc_wav)
 fpeaks(meanspec(croc_wav, wl = 1000), nmax = 1)
 spec(croc_wav)
 spectro(croc_wav)
