@@ -1,4 +1,4 @@
-load("data/data_agrocampus.RData")
+load("../data/data_agrocampus.RData")
 #load("~/2020-2021/PROJET-INGE/data_agrocampus.RData")
 
 son <- model_data[, 7:1102506]
@@ -11,6 +11,28 @@ f <- 1/dt
 summary(chat)
 table(chat$Cat_name, chat$Session)
 table(chat$Cat_name, chat$Diet)
+
+############################
+# Visualisation exp?rience #
+############################
+str(chat)
+chat$row <- seq(from = 1, to = 192, by = 1)
+hist(chat$nb_bit)
+hist(chat$nb_bk)
+plot(nb_bk ~ Diet, data = chat)
+plot(nb_bit ~ Diet, data = chat)
+
+library(ggplot2)
+library(plotly)
+p <- ggplot(chat, aes(x = nb_bit, y = nb_bk, color = Cat_name)) +
+  geom_point() 
+ggplotly(p, labels = ~row)
+
+plot_ly(chat, x = ~nb_bit, y = ~nb_bk, text = rownames(chat), text = ~paste('Row : ', row))
+
+#################
+# Visualisation #
+#################
 
 # INTERVALLE DE TEMPS CHOISI
 dep <- 1
@@ -66,7 +88,7 @@ spec <- meanspec(a@left, f=a@samp.rate)
 res3 <- fpeaks(spec = spec, f = a@samp.rate, nmax = 10, freq = 1 ) 
 
 localpeaks(spec, bands=5)
-#localpeaks(a@left, f = a@samp.rate, bands = 1) très long
+#localpeaks(a@left, f = a@samp.rate, bands = 1) tr?s long
 
 w <- colorRampPalette(c("white","white"))
 spectro(a@left, f=a@samp.rate, ovlp=95, palette=w, cont=TRUE, colcont=temp.colors(8), contlevels=seq(-5,0,5), scale=FALSE)
@@ -102,7 +124,7 @@ a_test <- a
 a_test@left <- a_rmnoise@left
 play(a_test)
 
-  #Données chats
+  #Donn?es chats
 chat_10 <- a
 chat_32 <- a
 chat_34 <- a
@@ -146,6 +168,8 @@ c@left <- as.integer(son[34,400000:1102500])
 class(a@left)
 class(as.integer(son[1, 1:400000]))
 
+
+
 # Cours R
 library(tuneR)
 notchi1 <- readWave("data/Notchi 1.wav")
@@ -187,3 +211,35 @@ plot(p.notchi2_filetered)
 ffilter(wave, f, channel = 1, from = NULL, to = NULL, bandpass = TRUE,
         custom = NULL, wl = 1024, ovlp = 75, wn = "hanning", fftw = FALSE,
         rescale=FALSE, listen=FALSE, output="matrix")
+
+
+###########"
+#
+############
+draw_plot <- function(line,pas,dep,fin){
+  dt <- 25/1102500
+  dep <- dep
+  fin <- fin/dt
+  pas <- pas
+  temps <- seq(from = dep, to = fin, by = pas)
+  indice <- temps + 1
+  dta <- data.frame(time = temps[-length(temps)]*dt, 
+                    amplitude = as.integer(son[line,temps]))
+  
+  # graphe
+  p1 <- dta %>% ggplot() +
+    aes(x = time, y = amplitude) +
+    geom_line(size = 0.2) +
+    theme_minimal()
+  
+  p1 <- p1 + annotate("text", x = 23, y = max(dta$amplitude), 
+                      label = paste('nb_bk: ',
+                                    chat[line,'nb_bk'],'\n',
+                                    'nb_bit: ',
+                                    chat[line,'nb_bit']),
+                      colour = 'orange', size = 5)
+  ggplotly(p1)
+}
+
+draw_plot('39', 200, 0, 25)
+
