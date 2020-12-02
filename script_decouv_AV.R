@@ -152,7 +152,10 @@ draw_plot <- function(line, pas, dep = 0, fin = 25){
   indice <- temps + 1
   dta <- data.frame(time = temps[-length(temps)]*dt, 
                     amplitude = as.integer(son[line,temps]))
-  
+  print(paste('nb_bk: ',
+              chat[line,'nb_bk'],'\n',
+              'nb_bit: ',
+              chat[line,'nb_bit']))
   # graphe
   p1 <- dta %>% ggplot() +
     aes(x = time, y = amplitude) +
