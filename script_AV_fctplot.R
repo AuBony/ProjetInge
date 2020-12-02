@@ -1,6 +1,5 @@
 
-load("~/2020-2021/PROJET-INGE/son2.RData")
-load("~/2020-2021/PROJET-INGE/data_agrocampus.RData")
+load("~/2020-2021/PROJET-INGE/Mars.RData")
 
 library(plotly)
 library(tidyverse)
@@ -50,7 +49,7 @@ manygraphs <- function(rows, vec_lines, pas, dep, fin){
 }
 
 vec_lines <- c('1','34','70','118')
-pas <- 1
+pas <- 100
 dep <- 0
 fin <- 25
 rows <- 2
