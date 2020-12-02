@@ -13,6 +13,7 @@ notchi1_left <- notchi1_wav@left
 notchi2_left <- notchi2_wav@left
 
 #Les vecteurs doivent avoir la taille du jdd final
+son <- model_data[, 7:1102506]
 len_max <- length(son)
 length(notchi1_left) <- len_max
 length(notchi2_left) <- len_max
@@ -24,8 +25,9 @@ notchi_left <- rbind(notchi1_left, notchi2_left)
 str(notchi_left)
 
 son2 <- as.data.frame(rbind(as.matrix(son), notchi_left))
+rownames(son2) <- c(seq(1, 192, 1), "notchi1", "notchi2")
 
-#
+#Création de chat2
 notchi_chat_1 <- c("Notchi", NA, NA, NA, 0, 12)
 notchi_chat_2 <- c("Notchi", NA, NA, NA, 1, 8)
 
@@ -33,7 +35,7 @@ levels(chat$Cat_name) <- c(levels(chat$Cat_name), "Notchi")
 
 
 chat2 <- as.data.frame(rbind(chat, notchi_chat_1, notchi_chat_2))
-
+rownames(chat2) <- rownames(son2)
 #Enregistrement
 save(chat2, son2, file = "data/Mars.RData")
 
