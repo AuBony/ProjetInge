@@ -25,5 +25,15 @@ str(notchi_left)
 
 son2 <- as.data.frame(rbind(as.matrix(son), notchi_left))
 
-save(son2, file = "data/son2.RData")
+#
+notchi_chat_1 <- c("Notchi", NA, NA, NA, 0, 12)
+notchi_chat_2 <- c("Notchi", NA, NA, NA, 1, 8)
+
+levels(chat$Cat_name) <- c(levels(chat$Cat_name), "Notchi")
+
+
+chat2 <- as.data.frame(rbind(chat, notchi_chat_1, notchi_chat_2))
+
+#Enregistrement
+save(chat2, son2, file = "data/Mars.RData")
 
