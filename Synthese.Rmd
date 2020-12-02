@@ -21,12 +21,19 @@ library(tidyverse)
 ## Séparation du JDD en 2 jeux: un descriptif des expériences, et un avec les données de son
 
 ```{r}
+rownames(model_data) <- seq(1, 192, 1)
 chat <- model_data[,1:6]
 son <- model_data[, 7:1102506]
 ```
 
-# Visualisation  
-Fonction de visualisation des courbes
+# Visualisation
+
+## Presentation de l'exp?rience
+
+
+## Visualisation des donn?es son
+
+### Fonction de visualisation des courbes
 
 ```{r}
 draw_plot <- function(line,pas,dep,fin){
