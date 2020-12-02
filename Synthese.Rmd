@@ -5,26 +5,27 @@ date: "01/12/2020"
 output: html_document
 ---
 
-Importation des données
+# Importation des données
 
 ```{r}
 load("~/2020-2021/PROJET-INGE/data_agrocampus.RData")
 ```
 
-Chargement des packages
+## Chargement des packages
 
 ```{r}
 library(plotly)
 library(tidyverse)
 ```
 
-Séparation du JDD en 2 jeux: un descriptif des expériences, et un avec les données de son
+## Séparation du JDD en 2 jeux: un descriptif des expériences, et un avec les données de son
 
 ```{r}
 chat <- model_data[,1:6]
 son <- model_data[, 7:1102506]
 ```
 
+# Visualisation  
 Fonction de visualisation des courbes
 
 ```{r}
