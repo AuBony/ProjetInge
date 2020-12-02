@@ -121,6 +121,7 @@ chat_34@left <- as.integer(son[34,])
 chat_39@left <- as.integer(son[39,])
 chat_40@left <- as.integer(son[40,])
 
+
 play(chat_10)
 play(chat_32)
 play(chat_34)
@@ -134,9 +135,10 @@ writeWave(chat_39, "data/chat_l39.wav")
 writeWave(chat_40, "data/chat_l40.wav")
 
 
-
 chat_32_read <- readWave(filename = "data/chat_32.wav")
 listen(chat_32_read)
+
+
 
 chat_1 <- son[1,]
 play(chat_1)
@@ -153,6 +155,21 @@ class(a@left)
 class(as.integer(son[1, 1:400000]))
 
 
+      #Avec son2
+#bk = 7
+chat_85 <- a
+chat_85@left <- as.integer(son2[85,])
+play(chat_85)
+
+#bk = 6
+chat_115 <- a
+chat_115@left <- as.integer(son2[115,])
+play(chat_115)
+
+#Notchi
+chat_notchi1 <- a
+chat_notchi1@left <- as.integer(son2[193,])
+play(chat_notchi1)
 
 # Cours R
 library(tuneR)
@@ -208,7 +225,7 @@ draw_plot <- function(line,pas,dep,fin){
   temps <- seq(from = dep, to = fin, by = pas)
   indice <- temps + 1
   dta <- data.frame(time = temps[-length(temps)]*dt, 
-                    amplitude = as.integer(son[line,temps]))
+                    amplitude = as.integer(son2[line,temps]))
   
   # graphe
   p1 <- dta %>% ggplot() +
@@ -225,5 +242,7 @@ draw_plot <- function(line,pas,dep,fin){
   ggplotly(p1)
 }
 
-draw_plot('39', 200, 0, 25)
+draw_plot("notchi2_left", 10, 0, 9)
+draw_plot("notchi1_left", 10, 0, 9)
 
+draw_plot("85", 10, 0,25)
