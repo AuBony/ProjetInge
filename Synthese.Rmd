@@ -22,8 +22,8 @@ library(tidyverse)
 
 ```{r}
 rownames(model_data) <- seq(1, 192, 1)
-cat <- model_data[,1:6]
-sound <- model_data[, 7:1102506]
+chat <- model_data[,1:6]
+son <- model_data[, 7:1102506]
 ```
 
 # Visualisation
