@@ -12,23 +12,7 @@ summary(chat)
 table(chat$Cat_name, chat$Session)
 table(chat$Cat_name, chat$Diet)
 
-############################
-# Visualisation exp?rience #
-############################
-str(chat)
-chat$row <- seq(from = 1, to = 192, by = 1)
-hist(chat$nb_bit)
-hist(chat$nb_bk)
-plot(nb_bk ~ Diet, data = chat)
-plot(nb_bit ~ Diet, data = chat)
 
-library(ggplot2)
-library(plotly)
-p <- ggplot(chat, aes(x = nb_bit, y = nb_bk, color = Cat_name)) +
-  geom_point() 
-ggplotly(p, labels = ~row)
-
-plot_ly(chat, x = ~nb_bit, y = ~nb_bk, text = rownames(chat), text = ~paste('Row : ', row))
 
 #################
 # Visualisation #
