@@ -246,3 +246,36 @@ draw_plot("notchi2_left", 10, 0, 9)
 draw_plot("notchi1_left", 10, 0, 9)
 
 draw_plot("85", 10, 0,25)
+
+# Script Audrey Croc
+#Enveloppe du son
+analysis_croc <- acoustat(croc_wav, fraction = c(50) )
+analysis_croc$freq.P1
+analysis_croc$freq.M
+analysis_croc$freq.P2
+analysis_croc$freq.IPR
+
+par(mfrow = c(1,1))
+env(croc_wav)
+fpeaks(meanspec(croc_wav, wl = 1000), nmax = 1)
+spec(croc_wav)
+spectro(croc_wav)
+
+spectro(notchi2_wav)
+
+#Noise
+noise1_wav <- a
+noise1_wav@left <-  as.integer(noise1[1,])
+play(noise1_wav)
+
+noise2_wav <- a
+noise2_wav@left <-  as.integer(noise2[1,])
+play(noise2_wav)
+
+noise3_wav <- a
+noise3_wav@left <-  as.integer(noise3[1,])
+play(noise3_wav)
+
+noise5_wav <- a
+noise5_wav@left <-  as.integer(noise5[1,])
+play(noise5_wav)
