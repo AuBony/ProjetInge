@@ -34,4 +34,4 @@ plt.show()
 # stft -> spectogram
 n_fft = 2048 #number sample per fft
 hop_length = 512
-stft = librosa.core.stft(signal)
+stft = librosa.core.stft(signal) 
