@@ -63,7 +63,7 @@ manygraphs(rows, vec_lines, pas, dep, fin)
 
 dt <- 25/1102500
 dep <- 0
-pas <- 500
+pas <- 200
 
 # 1er bruit
 data <- noise1[-c(1,2)]
@@ -77,7 +77,6 @@ p2 <- dta %>% ggplot() +
   aes(x = time, y = amplitude) +
   geom_line(size = 0.2) +
   ylim(-30000,30000) +
-  xlim(0,60) +
   theme_minimal()
 p2 <- p2 + annotate("text", x = 3, y = 25000, 
                     label = paste("Noise 1"),
@@ -96,7 +95,6 @@ p3 <- dta %>% ggplot() +
   aes(x = time, y = amplitude) +
   geom_line(size = 0.2) +
   ylim(-30000,30000) +
-  xlim(0,60) +
   theme_minimal()
 p3 <- p3 + annotate("text", x = 3, y = 25000, 
                     label = paste("Noise 2"),
@@ -115,7 +113,6 @@ p4 <- dta %>% ggplot() +
   aes(x = time, y = amplitude) +
   geom_line(size = 0.2) +
   ylim(-30000,30000) +
-  xlim(0,60) +
   theme_minimal()
 p4 <- p4 + annotate("text", x = 3, y = 25000, 
                     label = paste("Noise 3"),
@@ -134,7 +131,6 @@ p5 <- dta %>% ggplot() +
   aes(x = time, y = amplitude) +
   geom_line(size = 0.2) +
   ylim(-30000,30000) +
-  xlim(0,60) +
   theme_minimal()
 p5 <- p5 + annotate("text", x = 3, y = 25000, 
                     label = paste("Noise 5"),
