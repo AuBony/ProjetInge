@@ -34,6 +34,7 @@ plt.show()
 # stft -> spectogram
 n_fft = 2048 #number sample per fft
 hop_length = 512
+<<<<<<< HEAD
 
 stft = librosa.core.stft(signal, hop_length = hop_length, n_fft = n_fft)
 spectrogram = np.abs(stft)
@@ -57,3 +58,6 @@ plt.show()
 
 
 
+=======
+stft = librosa.core.stft(signal) 
+>>>>>>> 94a0e3469a7fcadf0278a6b3730437807c618059
