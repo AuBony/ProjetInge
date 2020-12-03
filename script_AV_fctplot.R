@@ -1,5 +1,6 @@
 
 load("~/2020-2021/PROJET-INGE/Mars.RData")
+load("~/2020-2021/PROJET-INGE/noise_data.RData")
 
 library(plotly)
 library(tidyverse)
@@ -55,3 +56,89 @@ fin <- 25
 rows <- 2
 manygraphs(rows, vec_lines, pas, dep, fin)
 
+
+###########################################
+###### Noise data
+###########################################
+
+dt <- 25/1102500
+dep <- 0
+pas <- 500
+
+# 1er bruit
+data <- noise1[-c(1,2)]
+fin <- 2998800
+
+temps <- seq(from = dep, to = fin, by = pas)
+indice <- temps + 1
+dta <- data.frame(time = temps[-length(temps)]*dt, 
+                  amplitude = as.integer(data[temps]))
+p2 <- dta %>% ggplot() +
+  aes(x = time, y = amplitude) +
+  geom_line(size = 0.2) +
+  ylim(-30000,30000) +
+  xlim(0,60) +
+  theme_minimal()
+p2 <- p2 + annotate("text", x = 3, y = 25000, 
+                    label = paste("Noise 1"),
+                    colour = 'black', size = 5)
+p2 <- ggplotly(p2)
+
+# 2e bruit
+data <- noise2[-c(1,2)]
+fin <- 882000
+
+temps <- seq(from = dep, to = fin, by = pas)
+indice <- temps + 1
+dta <- data.frame(time = temps[-length(temps)]*dt, 
+                  amplitude = as.integer(data[temps]))
+p3 <- dta %>% ggplot() +
+  aes(x = time, y = amplitude) +
+  geom_line(size = 0.2) +
+  ylim(-30000,30000) +
+  xlim(0,60) +
+  theme_minimal()
+p3 <- p3 + annotate("text", x = 3, y = 25000, 
+                    label = paste("Noise 2"),
+                    colour = 'black', size = 5)
+p3 <- ggplotly(p3)
+
+# 3e bruit
+data <- noise3[-c(1,2)]
+fin <- 1764002
+
+temps <- seq(from = dep, to = fin, by = pas)
+indice <- temps + 1
+dta <- data.frame(time = temps[-length(temps)]*dt, 
+                  amplitude = as.integer(data[temps]))
+p4 <- dta %>% ggplot() +
+  aes(x = time, y = amplitude) +
+  geom_line(size = 0.2) +
+  ylim(-30000,30000) +
+  xlim(0,60) +
+  theme_minimal()
+p4 <- p4 + annotate("text", x = 3, y = 25000, 
+                    label = paste("Noise 3"),
+                    colour = 'black', size = 5)
+p4 <- ggplotly(p4)
+
+# 5e bruit
+data <- noise5[-c(1,2)]
+fin <- 1764002
+
+temps <- seq(from = dep, to = fin, by = pas)
+indice <- temps + 1
+dta <- data.frame(time = temps[-length(temps)]*dt, 
+                  amplitude = as.integer(data[temps]))
+p5 <- dta %>% ggplot() +
+  aes(x = time, y = amplitude) +
+  geom_line(size = 0.2) +
+  ylim(-30000,30000) +
+  xlim(0,60) +
+  theme_minimal()
+p5 <- p5 + annotate("text", x = 3, y = 25000, 
+                    label = paste("Noise 5"),
+                    colour = 'black', size = 5)
+p5 <- ggplotly(p5)
+
+subplot(p2, p3, p4, p5, nrows = 2)
