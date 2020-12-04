@@ -17,7 +17,7 @@ mach2_wav <- cutw(notchi2_wav, from = 5, to = 8, f = notchi2_wav@samp.rate, outp
 listen(mach1_wav)
 listen(mach2_wav)
 #Spectrogramme
-spectro(notchi2_wav)
+spectro(notchi2_wav, wl = 2048, collevels = seq(-70, 0, 1), ovlp = 25, flog = 1, fastdisp = TRUE)
 spectro(croc_wav)
 spectro(mach1_wav)
 spectro(mach2_wav)
