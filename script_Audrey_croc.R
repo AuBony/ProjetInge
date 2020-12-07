@@ -6,7 +6,7 @@
 #Import des données
 library(tuneR)
 library(seewave)
-notchi2_wav <- readWave("data/Notchi 2.wav")
+notchi2_wav <- readWave("../data/audio_brute/chat_194.wav")
 
 #Ecoute du son
 play(notchi2_wav)
@@ -21,7 +21,7 @@ listen(croc_wav)
 croc <- as.integer(cutw(notchi2_wav, from = 4, to = 4.8, f = notchi2_wav@samp.rate))
 
 #Spectrogramme
-spectro(croc_wav)
+spectro(croc_wav, osc = TRUE)
 
 #MFCCs
 size <- 0.01
@@ -32,6 +32,5 @@ heatmap(t(mfcc_croc), Colv = NA, Rowv = NA, scale = "column",
         main = "MFCCs Croc",
         labCol = seq(0, 0.8, size), 
         labRow = paste("Coef ", seq(1,12,1)))
-
 
 
