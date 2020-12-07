@@ -22,12 +22,15 @@ listen(chat_22_wav_cut_interference_filtrer)
 spec(chat_22_wav_cut_interference_filtrer)
 
 #Comparaison avec l'enregistrement original
-chat_22_wav_filter <- ffilter(chat_22_wav, from = 3000, to = 3500, bandpass = FALSE, output = "Wave")
+chat_22_wav_filter <- ffilter(chat_22_wav, from = 0, to = 5000, bandpass = FALSE, output = "Wave")
 spec(chat_22_wav_filter)
 listen(chat_22_wav_filter)
+spectro(chat_22_wav_filter)
 
 
 freq_interference <- spec(chat_22_wav_cut_interference, flim = c(0,5), alim = c(-2, 150))
 freq_interference 
 
 spectro(chat_22_wav_cut_interference, osc = TRUE)
+
+#
