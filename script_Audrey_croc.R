@@ -33,4 +33,14 @@ heatmap(t(mfcc_croc), Colv = NA, Rowv = NA, scale = "column",
         labCol = seq(0, 0.8, size), 
         labRow = paste("Coef ", seq(1,12,1)))
 
+#### Fonction
 
+spectro_wav <- function(path, wl = 512, ovlp = 0.1){
+  require(tuneR)
+  require(seewave)
+  fich_wav <- readWave(path)
+  spectro(fich_wav, osc = TRUE, wl = wl, ovlp = ovlp)
+}
+
+spectro_wav(path = "../data/videotowav/croc_nouch_26sec.wav", wl = 256)
+spectro_wav(path = "../data/audio_train/croc_notchi2.wav", wl = 256)
