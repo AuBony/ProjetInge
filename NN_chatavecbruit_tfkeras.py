@@ -16,7 +16,7 @@ import tensorflow.keras as keras
 
 dataset_path = "E:/ProjetInge/audio_brute"
 json_path = "data_melspec.json"
-chat_path = "C:/Users/HP/Documents/2020-2021/PROJET-INGE"
+chat_path = "E:/ProjetInge"
 n_fft = 2048 # interval we consider to apply FFT
 sr = 22050 # sample rate
 n_mels = 20 # nb of mel bands
@@ -49,6 +49,9 @@ with open(chat_path+"/chat.csv", newline='') as csvfile:
 
             # adding to items
             data["inputs"].append(log_mel_spectrogram)
+
+X = np.array(data["inputs"])
+y = np.array(data["outputs"])
 
 ## SCRIPT DEEP LEARNING
 
