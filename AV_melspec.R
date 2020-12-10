@@ -1,12 +1,12 @@
 library(tensorflow)
 library(keras)
-library(kextra)
 library(tuneR)
+library(seewave)
 
 
 dataset_path = "E:/ProjetInge/audio_brute"
 json_path = "data_melspec.json"
-chat_path = "C:/Users/HP/Documents/2020-2021/PROJET-INGE"
+chat_path = "E:/ProjetInge"
 n_fft = 2048 # interval we consider to apply FFT
 sr = 22050 # sample rate
 n_mels = 20 # nb of mel bands
@@ -25,6 +25,12 @@ for (i in 1:nrow(chat)){}
   
   # chargement des audio
   audio <- readWave(paste0(dataset_path,"/chat_",1,".wav"))
+  
+  freq <- fft(audio@left, inverse = FALSE)
+  
+  mel_freq <- mel(freq, inverse = FALSE)
+  
+  spectro(wave = audio, f = 22050)
   
   # conversion FFT freq bins en Mel bins
   filter <- tuneR:::fft2melmx(n_fft, sr = sr, nfilts = n_mels, width = 1,
@@ -58,13 +64,10 @@ for (i in 1:nrow(chat)){}
 ###################################################
 ###################################################
 
-library(keras)
-use_implementation("tensorflow")
-  
-library(tensorflow)
-tfe_enable_eager_execution(device_policy = "silent")
-
-
+x<-seq(0,10000,by=50)
+y<-mel(x)
+plot(x,y,type="l",xlab = "f (hertz)", ylab = "f (mel)",
+     main = "Mel scale", col="red")
 
 
 
