@@ -26,9 +26,10 @@ print(filter_banks.shape)
 plt.figure(figsize=(25, 10))
 librosa.display.specshow(filter_banks,
                          sr = sr,
-                         x_axis = "linear")
+                         x_axis = "linear",
+                         y_axis = "hz")
 # can use specshow to display any matrix
-plt.colorbar(format="%+2.f")
+plt.colorbar()
 plt.show()
 
 ## Extracting Mel Spectrogram
@@ -49,7 +50,7 @@ plt.figure(figsize=(25, 10))
 librosa.display.specshow(log_mel_spectrogram,
                          x_axis = "time",
                          y_axis = "mel",
-                         sr = sr)
-plt.colorbar(format="%+2.f")
+                         sr = sr, cmap='magma')
+plt.colorbar(format="%+2.0f dB")
 plt.show()
 
