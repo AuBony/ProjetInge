@@ -1,3 +1,4 @@
+#Source : http://samcarcagno.altervista.org/blog/basic-sound-processing-r/?doing_wp_cron=1607423007.6480479240417480468750
 # Import des données ----
 library(tuneR)
 chat1_wav <- readWave("../data/audio_brute/chat_1.wav")
@@ -37,3 +38,9 @@ if (n %% 2 > 0){
 freqArray <- (0:(nUniquePts-1)) * (chat1_wav@samp.rate / n) #  create the frequency array 
 
 plot(freqArray/1000, 10*log10(p), type='l', col='black', xlab='Frequency (kHz)', ylab='Power (dB)')
+
+
+timeArray <- (0:(length(nouch@left) - 1)) / nouch@samp.rate
+timeArray <- timeArray * 1000 #scale to milliseconde
+
+plot(timeArray, nouch@left, type='l', col='black', xlab='Time (ms)', ylab='Amplitude') 
