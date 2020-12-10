@@ -50,9 +50,6 @@ with open(chat_path+"/chat.csv", newline='') as csvfile:
             # adding to items
             data["inputs"].append(log_mel_spectrogram)
 
-X = np.array(data["inputs"])
-y = np.array(data["outputs"])
-
 ## SCRIPT DEEP LEARNING
 
 X = np.array(data["inputs"])
