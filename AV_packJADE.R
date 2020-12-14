@@ -4,18 +4,27 @@ library(JADE)
 library(tuneR)
 library(BBmisc)
 
-son <- son2[sample(1:194,50,replace = FALSE),seq(1,1102500, by = 200)]
+cat1 <- which(chat2$Cat_name == 'Cat1')
+ech <- seq(1, 1102500, by = 200)
+son <- son2[cat1,ech]
   
-S <- as.data.frame(t(as.matrix(son)))
-S <- scale(S, center = FALSE, scale = apply(S, 2, sd))
-St <- ts(son, start = 0, end = 25, frequency = 22050)
+X <- as.data.frame(t(as.matrix(son)))
+X <- scale(X, center = FALSE, scale = apply(X, 2, sd))
 
-jade <- JADE(S)
-sobi <- SOBI(St)
+jade <- JADE(X)
+
+plot(jade$S[,1], type = 'l')
+
+S <- matrix(ts(jade$S[,1], start = 0, end = 25, frequency = 220), ncol = 1)
+for (i in 2:21){
+  S <- cbind(S, ts(jade$S[,i], start = 0, end = 25, frequency = 220))
+}
+colnames(S) <- seq(1,ncol(S))
+plot(S[,c(1:7)], plot.type = 'multiple', main = 'Sources 1 à 7')
+plot(S[,c(8:14)], plot.type = 'multiple', main = 'Sources 8 à 14')
+plot(S[,c(15:21)], plot.type = 'multiple', main = 'Sources 15 à 21')
 
 
-
-l1 <- as.integer(son2[1,])
-l1ts <- ts(l1, start = 0, end = 25, frequency = 44100)
-plot.ts(l1ts)
-dev.off()
+####
+# SOBI et ?? 
+# fastICA
