@@ -42,5 +42,13 @@ spectro_wav <- function(path, wl = 512, ovlp = 0.1){
   spectro(fich_wav, osc = TRUE, wl = wl, ovlp = ovlp)
 }
 
+#Plot
 spectro_wav(path = "../data/videotowav/croc_nouch_26sec.wav", wl = 256)
 spectro_wav(path = "../data/audio_train/croc_notchi2.wav", wl = 256)
+
+spectro_wav(path = "../data/audio_croc_standard/nouch_1.wav", wl = 256)
+spectro_wav(path = "../data/audio_croc_standard/nouch_2.wav", wl = 256)
+spectro_wav(path = "../data/audio_croc_standard/nouch_3.wav", wl = 256)
+spectro_wav(path = "../data/audio_croc_standard/nouch_4.wav", wl = 256)
+spectro_wav(path = "../data/audio_croc_standard/nouch_5.wav", wl = 256)
+spectro_wav(path = "../data/audio_croc_standard/nouch_6.wav", wl = 256)
