@@ -3,8 +3,27 @@
 # Audrey Bony
 # 4/01/2021
 
+# Solution dplyr (source : https://clauswilke.com/blog/2016/06/13/reading-and-combining-many-tidy-data-files-in-r/)----
+require(readr)  # for read_csv()
+require(dplyr)  # for mutate()
+require(tidyr)  # for unnest()
+require(purrr)  # for map(), reduce()
 
-# Import function----
+data_path <- "../data/data_perso/labels/"
+files <- dir(data_path, pattern = "*.txt")
+files
+
+data <- data_frame(filename = files) %>%
+  mutate(file_contents = map(filename,         
+                             ~ read_delim(file.path(data_path, .),
+                                            delim="\t",
+                                            escape_double = FALSE,
+                                            col_names = c("start", "end", "annotation"),
+                                            trim_ws = TRUE)))
+
+df <- unnest(data, cols = c(file_contents))
+
+# Solution sans le nom des fichiers ----
 multmerge <- function(mypath = getwd()){
   require(dplyr)
   require(readr)
@@ -20,46 +39,5 @@ multmerge <- function(mypath = getwd()){
   dataset
 }
 
-#Solution qui marche
-read.data <- function(file){
-  setwd("J:/Cours/M2_Stat/Projet_inge/data/data_perso/labels")
-  dat <- read_delim(file,delim="\t", 
-                    escape_double = FALSE, 
-                    col_names = c("start", "end", "annotation"), 
-                    trim_ws = TRUE)
-  dat$fname <- file
-  return(dat)
-}
-
-dataset <- do.call(rbind, lapply(list.files(path="data/data_perso/labels", pattern=".xt"),read.data))
-
-library(plyr)
-filename <- list.files(path="data/data_perso/labels",
-                       full.names=TRUE, 
-                       pattern="*.txt")
-dat <- 
-import.list <- ldply(filename, read_delim, delim="\t", 
-                     escape_double = FALSE, 
-                     col_names = c("start", "end", "annotation"), 
-                     trim_ws = TRUE)
-
-a <- list.files(path="data/data_perso/labels",
-           full.names=TRUE, 
-           pattern="*.txt") %>% lapply(read_delim, 
-                                       delim="\t", 
-                                       escape_double = FALSE, 
-                                       col_names = c("start", "end", "annotation"), 
-                                       trim_ws = TRUE) 
-names(a) <- list.files(path="data/data_perso/labels")
-b <- apply(mutate, filename = names(a))
-  apply(mutate, filename = substring(1))
-
-
-read_plus <- function(flnm) {
-  read_csv(flnm) %>% 
-    mutate(filename = flnm) }
-tbl_with_sources <- list.files(pattern = "*.csv", full.names = T) %>% 
-  map_df(~read_plus(.)) 
-# Import ----
-df <- multmerge(mypath = "data/data_perso/labels")
-
+df_part <- multmerge("../data/data_perso/labels/")
+df_part
