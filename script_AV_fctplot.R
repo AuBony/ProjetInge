@@ -1,6 +1,6 @@
 
-load("~/2020-2021/PROJET-INGE/Mars.RData")
-load("~/2020-2021/PROJET-INGE/noise_data.RData")
+load("../data/Mars.RData")
+load("../data/noise_data_agrocampus.RData")
 
 library(plotly)
 library(tidyverse)
