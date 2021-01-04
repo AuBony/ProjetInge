@@ -57,7 +57,7 @@ jade$A
 Z <- bss.components(jade)
 library(BBmisc)
 library(tuneR)
-NSSTDJDwave1 <- normalize(Wave(left = as.numeric(Z[, 1]), samp.rate = 44100, bit = 16), unit = "16")
+NSSTDJDwave1 <- tuneR::normalize(Wave(left = as.numeric(Z[, 1]), samp.rate = 44100, bit = 16), unit = "16")
 play(NSSTDJDwave1) #voix
 NSSTDJDwave2 <- normalize(Wave(left = as.numeric(Z[, 2]), samp.rate = 44100, bit = 16), unit = "16")
 play(NSSTDJDwave2) #frottement
