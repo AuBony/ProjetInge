@@ -21,7 +21,12 @@ data <- data_frame(filename = files) %>%
                                             col_names = c("start", "end", "annotation"),
                                             trim_ws = TRUE)))
 
-df <- unnest(data, cols = c(file_contents))
+data_modif <- unnest(data, cols = c(file_contents))
+
+df <- data_modif %>% 
+  mutate(chat = as.character(map(strsplit(df$filename, "_"), 1)), 
+         kibble = as.character(map(strsplit(df$filename, "_"), 2)))
+
 
 # Solution sans le nom des fichiers ----
 multmerge <- function(mypath = getwd()){
