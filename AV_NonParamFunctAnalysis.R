@@ -72,6 +72,9 @@ plot.PCA(res.PCA3, choix = "ind")
 ##### Regression
 ######################################
 
+
+### sur donnees mars
+
 dta <- son2[,seq(1, 1102500, by = 200)]
 dta[,5514] <- chat2[,5]
 colnames(dta)[5514] <- 'nb_bk'
@@ -90,6 +93,27 @@ PRED <- as.matrix(test[,-5514])
 res <- funopare.knn.lcv(Response, CURVES, PRED, q = 2, nknot = 5, range.grid = c(194,1000), kind.of.kernel = "quadratic", semimetric = "deriv")
 
 plot(test[,5514], res$Predicted.values, 
+     xlim = c(0,5), ylim = c(0,5),
+     xlab = 'variable reponse', ylab = 'prediction',
+     main = 'Prediction fonctionnelle en fonction \ndes valeurs observees de nombre de break')
+lines(seq(0,5,by = 1), seq(0,5,by = 1))
+
+
+### sur donnees propres
+
+load("~/2020-2021/PROJET-INGE/complete_clean_data.RData")
+
+sel <- sample(1:48, 18, replace = FALSE)
+train <- dta[-sel,]
+test <- dta[sel,]
+
+Response <- train$nb_bk
+CURVES <- as.matrix(train[,1:882000])
+PRED <- as.matrix(test[,1:882000])
+
+res <- funopare.knn.lcv(Response, CURVES, PRED, q = 2, nknot = 5, range.grid = c(1,882000), kind.of.kernel = "quadratic", semimetric = "deriv")
+
+plot(test$nb_bk, res$Predicted.values, 
      xlim = c(0,5), ylim = c(0,5),
      xlab = 'variable reponse', ylab = 'prediction',
      main = 'Prediction fonctionnelle en fonction \ndes valeurs observees de nombre de break')
