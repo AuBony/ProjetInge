@@ -28,7 +28,7 @@ library(tuneR)
 
 # importation des donnees
 
-setwd("~/2020-2021/PROJET-INGE")
+setwd("~/GitHub/ProjetInge")
 
 res <- read.table('cleandata.csv', sep = ';', header = TRUE)
 
