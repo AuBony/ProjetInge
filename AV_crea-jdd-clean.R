@@ -1,35 +1,64 @@
+
+############# TESTS #############
+
 library(tuneR)
 
 setwd("~/2020-2021/PROJET-INGE")
-sound <- readWave('cleanwav/cathy_C_4.wav')
+sound <- readWave('cleanwav/cathy_A_3.wav')
 play(sound)
 
 plot(sound)
 
 sound@samp.rate # 44100
 sound@bit # 16
-str(sound@left) # int [1:267187]
+str(sound@left) # int [1:706541]
 
 plot(sound@left, type = 'l')
 
 ## -> choisir left ou right channel?
 ## on prend left pour l'instant
 
+
+############# CODE #############
+
+# chargement du package
+
+library(tuneR)
+
+# importation des donnees
+
+setwd("~/2020-2021/PROJET-INGE")
+
+res <- read.table('cleandata.csv', sep = ';', header = TRUE)
+
 fich <- list.files('cleanwav')
 fichmat <-  matrix(fich, nrow = length(fich))
 wavlist <- sapply(paste0('cleanwav/',fichmat), imp_left)
 
-# transformer la liste de vecteurs en dataframe, les noms des rows sont les noms 
-# des elements de la liste
+# transformation de la matrice en dataframe, les noms des rows sont les noms 
+# des fichiers
 
-df <- data.frame(matrix(unlist(wavlist), nrow=length(wavlist), byrow=T))
+df <- data.frame(t(wavlist))
+dim(df) # 49 882000
+summary(df[,1:10])
 
-# PROBLEME QUE PAS LA MEME LONGEUR !!!
+# ajout des colonnes resultats (nb_bk et nb_bit)
+
+df$nb_bk <- res$nb_bk
+df$nb_bit <- res$nb_bit
+
+# resultat : df de la a autant de lignes que de vidéos, avec 882000 colonnes de 
+# données quanti d'amplitude sonore, et 2 colonnes quanti de nb de break et bite
 
 ########### FONCTIONS ###########
 
 imp_left <- function(filename){
+  # prend en entree le nom d'un fichier pour renvoyer les valeurs de sa left channel
+  # dans un vecteur de 882000 elements (20 sec) complété avec des 0 à la fin
+  vec <- rep(0,882000)
   file <- readWave(filename)
-  return(file@left)
+  left <- file@left
+  vec[1:length(left)] <- left
+  return(vec)
 }
 
