@@ -17,9 +17,14 @@ plot(sound@left, type = 'l')
 
 fich <- list.files('cleanwav')
 fichmat <-  matrix(fich, nrow = length(fich))
-wavlist <- apply(fichmat, 1, imp_left)
-dta <- matrix(wavlist)
+wavlist <- sapply(paste0('cleanwav/',fichmat), imp_left)
 
+# transformer la liste de vecteurs en dataframe, les noms des rows sont les noms 
+# des elements de la liste
+
+df <- data.frame(matrix(unlist(wavlist), nrow=length(wavlist), byrow=T))
+
+# PROBLEME QUE PAS LA MEME LONGEUR !!!
 
 ########### FONCTIONS ###########
 
