@@ -1,14 +1,14 @@
 library(tuneR)
 
 setwd("~/2020-2021/PROJET-INGE")
-sound <- readWave('cathy_C_4.wav')
+sound <- readWave('cleanwav/cathy_C_4.wav')
 play(sound)
 
 plot(sound)
 
-sound@samp.rate # 48000
+sound@samp.rate # 44100
 sound@bit # 16
-str(sound@left) # int [1:290816]
+str(sound@left) # int [1:267187]
 
 plot(sound@left, type = 'l')
 
