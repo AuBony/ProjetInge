@@ -118,7 +118,7 @@ df %>% filter(annotation == "croc") %>%
 
 
 ############# MODEL #############
-# MODEL ----
+# FEATURES ----
 library(soundgen)
 library(tuneR)
 
@@ -128,7 +128,7 @@ wav_path <- "ProjetInge/cleanwav/"
 
 
 require(seewave)
-df_feature <- data.frame(id = numeric(),
+df_feature <- tibble(id = numeric(),
                          filename = character(),
                          annotation = character(),
                          th = numeric(),
@@ -141,9 +141,9 @@ for (i in 1:nrow(df_wav)){
                        to = df_wav[i,4],
                        units = "seconds") 
     #
-  df_feature  %>% add_row(id = df_wav$id[i],
+  df_feature <- df_feature %>% add_row(id = df_wav$id[i],
                           filename = df_wav$filename[i],
-                          annotation = df_wav$filename[i],
+                          annotation = df_wav$annotation[i],
                           th = th(env(wav_file, plot = FALSE)),
                           maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
                           meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2])
@@ -156,3 +156,57 @@ th(env(a, plot = FALSE))
 #Dominant frequency of a time wave
 max(dfreq(a, plot = FALSE)[,2])
 mean(dfreq(a, plot = FALSE)[,2])
+
+# Vizualisation
+library(plotly)
+plot(df_feature$meandfreq, df_feature$maxdfreq, col = as.factor(df_feature$annotation))
+
+plot_ly(df_feature,
+        x = ~maxdfreq,
+        y = ~meandfreq,
+        z = ~th,
+        color = ~annotation,
+        colors = c("#383ED9", "#FADA23"),
+        marker = list(symbol = "circle", sizemode = 'diameter'))
+
+# MODEL ALGORITHM ----
+# source : https://towardsdatascience.com/classifying-rare-events-using-five-machine-learning-techniques-fab464573233
+
+#library
+require(class)
+#Functions
+get.error <- function(class,pred){
+  cont.tab <- table(class,pred)
+  print(cont.tab)
+  return((cont.tab[2,1]+cont.tab[1,2])/(sum(cont.tab)))
+}
+
+get.sensitivity <- function(class,pred){
+  cont.tab <- table(class,pred)
+  return((cont.tab[2,2])/(sum(cont.tab[2,])))
+}
+
+
+get.specificity <- function(class,pred){
+  cont.tab <- table(class,pred)
+  return((cont.tab[1,1])/(sum(cont.tab[1,])))
+}
+
+#data train and data test
+set.seed(1234)
+n <- nrow(df_feature)
+n.train <- round(n/4, 0)
+n.test <- n-n.train
+ind.train <- sample(1:nrow(df_feature),n.train)
+data.train <- df_feature[ind.train,]
+data.test <- df_feature[-ind.train,]
+
+#knn
+pred.test.knn.1 <- knn(train=data.train[,4:6],test=data.test[,4:6],cl= data.train$annotation,k=1)
+
+get.error(data.test$annotation,pred.test.knn.1)
+get.specificity(data.test$annotation,pred.test.knn.1)
+get.sensitivity(data.test$annotation,pred.test.knn.1)
+
+pred.grid.knn.1 <- knn(train=data.train[,3:4],test=data.grid,cl=data.train$default,k=1)
+
