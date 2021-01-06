@@ -3,6 +3,9 @@
 # Audrey Bony
 # 4/01/2021
 
+
+############# LABEL #############
+
 # Solution dplyr (source : https://clauswilke.com/blog/2016/06/13/reading-and-combining-many-tidy-data-files-in-r/)----
 require(readr)  # for read_csv()
 require(dplyr)  # for mutate()
@@ -28,6 +31,7 @@ df <- data_modif %>%
          kibble = as.character(map(strsplit(data_modif$filename, "_"), 2)))
 
 df <- df %>%  mutate(duration = end - start)
+
 # Solution sans le nom des fichiers ----
 multmerge <- function(mypath = getwd()){
   require(dplyr)
@@ -47,7 +51,10 @@ multmerge <- function(mypath = getwd()){
 df_part <- multmerge("../data/data_perso/labels/")
 df_part
 
-# Description ----
+
+############# DESCRIPTION #############
+# DESCRIPTION  ----
+library(ggplot2)
 #Nombre de crocs et de mach
 table(df$annotation)
 
@@ -95,5 +102,7 @@ df %>% filter(annotation == "croc") %>%
   ggtitle("Durée des crocs par chat")
 
 
+############# MODEL #############
+# MODEL ----
 
 
