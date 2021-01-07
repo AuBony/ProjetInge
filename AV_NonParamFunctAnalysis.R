@@ -72,24 +72,59 @@ plot.PCA(res.PCA3, choix = "ind")
 ##### Regression
 ######################################
 
-dta <- son2[,seq(1, 1102500, by = 200)]
-dta[,5514] <- chat2[,5]
-colnames(dta)[5514] <- 'nb_bk'
-View(dta[1:10,5510:5514])
-dta$nb_bk <- as.integer(dta$nb_bk)
-summary(dta[5514])
 
-sel <- sample(1:194, 64, replace = FALSE)
+### sur donnees mars
+
+load("~/2020-2021/PROJET-INGE/Mars.RData")
+
+dta <- son2[,seq(1, 1102500, by = 200)]
+
+n <- ncol(dta) + 1
+
+dta[,n] <- chat2[,5]
+colnames(dta)[n] <- 'nb_bk'
+View(dta[1:10,(n-5):n])
+dta$nb_bk <- as.integer(dta$nb_bk)
+summary(dta[n])
+
+sel <- sample(1:nrow(dta), as.integer(nrow(dta)/3), replace = FALSE)
 train <- dta[-sel,]
 test <- dta[sel,]
 
 Response <- train$nb_bk
-CURVES <- as.matrix(train[,-5514])
-PRED <- as.matrix(test[,-5514])
+CURVES <- as.matrix(train[,-n])
+PRED <- as.matrix(test[,-n])
 
-res <- funopare.knn.lcv(Response, CURVES, PRED, q = 2, nknot = 5, range.grid = c(194,1000), kind.of.kernel = "quadratic", semimetric = "deriv")
+res <- funopare.knn.lcv(Response, CURVES, PRED, q = 5, 
+                        kind.of.kernel = "quadratic", semimetric = "pca")
 
-plot(test[,5514], res$Predicted.values, 
+plot(test[,n], res$Predicted.values, 
+     xlim = c(0,5), ylim = c(0,5),
+     xlab = 'variable reponse', ylab = 'prediction',
+     main = 'Prediction fonctionnelle en fonction \ndes valeurs observees 
+     de nombre de break')
+lines(seq(0,5,by = 1), seq(0,5,by = 1))
+
+
+### sur donnees propres
+
+load("~/2020-2021/PROJET-INGE/complete_clean_data.RData")
+
+ordta <- dta
+dta <- dta[,c(seq(1, 882000, by = 100),882001,882002)]
+
+sel <- sample(1:nrow(dta), as.integer(nrow(dta)/3), replace = FALSE)
+train <- dta[-sel,]
+test <- dta[sel,]
+
+Response <- train$nb_bk
+CURVES <- as.matrix(train[,1:(ncol(dta)-2)])
+PRED <- as.matrix(test[,1:(ncol(dta)-2)])
+
+res <- funopare.knn.lcv(Response, CURVES, PRED, q = 5, 
+                        kind.of.kernel = "quadratic", semimetric = "pca")
+
+plot(test$nb_bk, res$Predicted.values, 
      xlim = c(0,5), ylim = c(0,5),
      xlab = 'variable reponse', ylab = 'prediction',
      main = 'Prediction fonctionnelle en fonction \ndes valeurs observees de nombre de break')
@@ -207,7 +242,46 @@ semimetric.deriv <- function(DATA1, DATA2, q, nknot, range.grid)
 #####################################################################
 #####################################################################
 
-funopare.knn.lcv <- function(Response, CURVES, PRED, ..., kind.of.kernel = "quadratic", semimetric = "deriv")
+semimetric.pca <- function(DATA1, DATA2, q)
+{
+  ###############################################################
+  # Computes between curves a pca-type semimetric based on the
+  # functional principal components analysis method.
+  #    "DATA1" matrix containing a first set of curves stored row by row
+  #    "DATA2" matrix containing a second set of curves stored row by row
+  #    "q" the retained number of principal components
+  # Returns a "semimetric" matrix containing the semimetric computed 
+  # between the curves lying to the first sample and the curves lying  
+  # to the second one.
+  ###############################################################
+  if(is.vector(DATA1)) DATA1 <- as.matrix(t(DATA1))
+  if(is.vector(DATA2)) DATA2 <- as.matrix(t(DATA2))
+  testfordim <- sum(dim(DATA1)==dim(DATA2))==2
+  twodatasets <- T
+  if(testfordim) twodatasets <- sum(DATA1==DATA2)!=prod(dim(DATA1))
+  qmax <- ncol(DATA1)
+  if(q > qmax) stop(paste("give a integer q smaller than ", qmax))
+  n <- nrow(DATA1)
+  COVARIANCE <- t(DATA1) %*% DATA1/n
+  EIGENVECTORS <- eigen(COVARIANCE, sym = T)$vectors[, 1:q]
+  COMPONENT1 <- DATA1 %*% EIGENVECTORS
+  if(twodatasets) {
+    COMPONENT2 <- DATA2 %*% EIGENVECTORS
+  }
+  else {
+    COMPONENT2 <- COMPONENT1
+  }
+  SEMIMETRIC <- 0
+  for(qq in 1:q)
+    SEMIMETRIC <- SEMIMETRIC + outer(COMPONENT1[, qq], COMPONENT2[, 
+                                                                  qq], "-")^2
+  return(sqrt(SEMIMETRIC))
+}
+
+#####################################################################
+#####################################################################
+
+funopare.knn.lcv <- function(Response, CURVES, PRED, ..., kind.of.kernel = "quadratic", semimetric = "pca")
 {
   ################################################################
   # Performs functional prediction (regression) of a scalar response 
