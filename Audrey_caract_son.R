@@ -77,7 +77,7 @@ table(df_wav$annotation, df_wav$chat)
 table(df_wav$annotation, df_wav$kibble)
 
 #Comparer durée des crocs et des mach
-ggplot(df, aes(x=annotation, y=duration, fill=annotation)) +
+ggplot(df_wav, aes(x=annotation, y=duration, fill=annotation)) +
   geom_violin() +
   ggtitle("Durée des crocs et des mastications")
 
@@ -171,20 +171,20 @@ for (i in 1:nrow(df_wav)){
                           maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
                           meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
                           
-                          smean = numeric(),
-                          ssd = numeric(),
-                          ssem = numeric(),
-                          smedian = numeric(),
-                          smode = numeric(),
-                          sQ25 = numeric(),
-                          sQ75 = numeric(),
-                          sIQR = numeric(),
-                          scent = numeric(),
-                          sskewness = numeric(),
-                          skurtosis = numeric(),
-                          ssfm = numeric(),
-                          ssh = numeric(),
-                          sprec = numeric()
+                          smean = sp$mean,
+                          ssd = sp$sd,
+                          ssem = sp$sem,
+                          smedian = sp$median,
+                          smode = sp$mode,
+                          sQ25 = sp$Q25,
+                          sQ75 = sp$Q75,
+                          sIQR = sp$IQR,
+                          scent = sp$cent,
+                          sskewness = sp$skewness,
+                          skurtosis = sp$kurtosis,
+                          ssfm = sp$sfm,
+                          ssh = sp$sh,
+                          sprec = sp$prec
                           ) 
 }
 
@@ -202,6 +202,12 @@ mean(dfreq(a, plot = FALSE)[,2])
 #Spectral centroid
 #source : https://cran.r-project.org/web/packages/seewave/seewave.pdf at specprop
 sp <- specprop(spec(a@left, f = a@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
+
+## VARIABLE SELECTION ----
+library(FactoMineR)
+library(Factoshiny)
+
+Factoshiny(df_feature)
 
 ## VIZUALISATION ----
 library(plotly)
@@ -290,7 +296,7 @@ data.train <- df_feature[ind.train,]
 data.test <- df_feature[-ind.train,]
 
 #knn
-pred.test.knn.1 <- knn(train=data.train[,4:6],test=data.test[,4:6],cl= data.train$annotation,k=1)
+pred.test.knn.1 <- knn(train=data.train[,4:20],test=data.test[,4:20],cl= data.train$annotation,k=1)
 
 get.error(data.test$annotation,pred.test.knn.1)
 get.specificity(data.test$annotation,pred.test.knn.1)
@@ -299,18 +305,19 @@ get.sensitivity(data.test$annotation,pred.test.knn.1)
 #RandomForest 
 library(randomForest)
 
-x_train <- df_feature[ind.train, 4:6]
+x_train <- df_feature[ind.train, 4:20]
 y_train <-  df_feature[ind.train, "annotation"]
 y_train$annotation <- as.factor(y_train$annotation)
 
-x_test <- df_feature[-ind.train, 4:6]
+x_test <- df_feature[-ind.train, 4:20]
 y_test <- df_feature[-ind.train, "annotation"]
 
 ##Calcul des temps d'execution
 T1<-Sys.time()
 model.50 <- randomForest( y_train$annotation~ .,
-                          data = as.data.frame(data.train[,4:6]),
-                          ntree = 50, na.action = na.omit)
+                          data = as.data.frame(data.train[,4:20]),
+                          ntree = 50, na.action = na.omit,
+                          importance = TRUE)
 plot(model.50)
 
 pred.test.rf.50 <- predict(model.50, newdata = data.test[,4:6])
@@ -321,4 +328,25 @@ get.error(data.test$annotation,pred.test.rf.50)
 get.specificity(data.test$annotation,pred.test.rf.50)
 get.sensitivity(data.test$annotation,pred.test.rf.50)
 
+# ROC Curve
+library(ROCR)
+AUC <- matrix(NA, nrow=5, ncol=1)
+colnames(AUC) <- c("AUC") 
+rownames(AUC) <- c("KNN", "RF")
 
+knn_model <- knn(train=data.train[,4:20],test=data.test[,4:20],cl= data.train$annotation,k=11, prob = TRUE)
+prob <- attr(knn_model, "prob")
+prob <- 2*ifelse(knn_model == "-1", prob,1-prob) - 1
+pred_knn <- prediction(prob, data.test$annotation)
+performance_knn <- performance(pred_knn, "tpr", "fpr")
+plot(performance_knn, col = 5, add = TRUE)
+
+pred_RF <- predict(model.50, newdata = data.test[,4:20], type = "prob")
+pred_class <-  prediction(pred_RF[,2], data.test$annotation)
+performance_RF <- performance(pred_class,measure = "tpr",x.measure= "fpr")
+plot(performance_RF, col = 3, add = TRUE)
+abline(0,1)
+
+
+## RARE EVENT DETECTION ----
+#source : https://towardsdatascience.com/classifying-rare-events-using-five-machine-learning-techniques-fab464573233
