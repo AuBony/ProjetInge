@@ -67,6 +67,14 @@ res.PCA3 <- PCA(test, graph = FALSE)
 plot.PCA(res.PCA3, choix = "var", label = "none")
 plot.PCA(res.PCA3, choix = "ind")
 
+#### Clean cat data
+
+res.PCA4 <- PCA(dta, quanti.sup = c(8821,8822), graph = FALSE)
+plot.PCA(res.PCA4, choix = "var", label = "none", axes = c(3,4))
+plot.PCA(res.PCA4, choix = "ind", habillage='nb_bk', label = "none", axes = c(3,4))
+
+library(Factoshiny)
+Factoshiny(dta)
 
 ######################################
 ##### Regression
@@ -111,7 +119,7 @@ lines(seq(0,5,by = 1), seq(0,5,by = 1))
 load("~/2020-2021/PROJET-INGE/complete_clean_data.RData")
 
 ordta <- dta
-dta <- dta[,c(seq(1, 882000, by = 100),882001,882002)]
+dta <- ordta[,c(seq(1, 882000, by = 100),882001,882002)]
 
 sel <- sample(1:nrow(dta), as.integer(nrow(dta)/3), replace = FALSE)
 train <- dta[-sel,]
@@ -121,8 +129,8 @@ Response <- train$nb_bk
 CURVES <- as.matrix(train[,1:(ncol(dta)-2)])
 PRED <- as.matrix(test[,1:(ncol(dta)-2)])
 
-res <- funopare.knn.lcv(Response, CURVES, PRED, q = 5, 
-                        kind.of.kernel = "quadratic", semimetric = "pca")
+res <- funopare.knn.lcv(Response, CURVES, PRED, q = 150, 
+                        kind.of.kernel = "quadratic", semimetric = "mplsr")
 
 plot(test$nb_bk, res$Predicted.values, 
      xlim = c(0,5), ylim = c(0,5),
@@ -131,11 +139,30 @@ plot(test$nb_bk, res$Predicted.values,
 lines(seq(0,5,by = 1), seq(0,5,by = 1))
 
 #####################################################################
+#### KERNEL FUNCTIONS
+#####################################################################
 
 quadratic <- function(u)
 {
   #  quadratic kernel
   1 - (u)^2
+}
+
+triangle <- function(u)
+{
+  #  triangle kernel
+  1 - u
+}
+
+indicator <- function(u)
+{
+  Logic0 <- u<0
+  Logic1 <- u>1
+  Logic01 <- as.logical((1-Logic0) * (1-Logic1))
+  u[Logic0] <- 0
+  u[Logic1] <- 0
+  u[Logic01] <- 1
+  return(u)
 }
 
 #####################################################################
@@ -162,94 +189,75 @@ symsolve <- function(Asym, Bmat)
 #####################################################################
 #####################################################################
 
-semimetric.deriv <- function(DATA1, DATA2, q, nknot, range.grid)
+mplsr <- function(X, Y, K = 5)
 {
-  ###############################################################
-  # Computes a semimetric between curves based on their derivatives.
-  #    "DATA1" matrix containing a first set of curves stored row by row
-  #    "DATA2" matrix containing a second set of curves stored row by row
-  #    "q" order of derivation
-  #    "nknot" number of interior knots (needed for defining the B-spline basis)
-  #    "range.grid" vector of length 2 containing the range of the grid at 
-  #                 which the curve are evaluated (i.e. range of the 
-  #                 discretization)
-  # Returns a "semimetric" matrix containing the semimetric computed 
-  # between the curves lying to the first sample and the curves lying  
-  # to the second one.
-  ###############################################################
-  library(splines)
-  if(is.vector(DATA1)) DATA1 <- as.matrix(t(DATA1))
-  if(is.vector(DATA2)) DATA2 <- as.matrix(t(DATA2))
-  testfordim <- sum(dim(DATA1)==dim(DATA2))==2
-  twodatasets <- T
-  if(testfordim) twodatasets <- sum(DATA1==DATA2)!=prod(dim(DATA1))
-  #####################################################################
-  # B-spline approximation of the curves containing in DATASET :
-  # -----------------------------------------------------------
-  # "knot" and "x" allow to define the B-spline basis
-  # "coef.mat1[, i]" corresponds to the B-spline expansion
-  # of the discretized curve contained in DATASET[i, ]. 
-  # The B-spline approximation of the curve contained in "DATA1[i, ]" 
-  # is given by "Bspline %*% coef.mat1[, i]"
-  #####################################################################
-  p <- ncol(DATA1)
-  a <- range.grid[1]
-  b <- range.grid[2]
-  x <- seq(a, b, length = p)
-  order.Bspline <- q + 3
-  nknotmax <- (p - order.Bspline - 1)%/%2
-  if(nknot > nknotmax){
-    stop(paste("give a number nknot smaller than ",nknotmax, " for avoiding ill-conditioned matrix"))
+  # Copyright (c) October 1993, Mike Denham.
+  # Comments and Complaints to: snsdenhm@reading.ac.uk
+  #
+  # Orthogonal Scores Algorithm for PLS (Martens and Naes, pp. 121--123)
+  #
+  # X: predictors (matrix) 
+  #
+  # Y: multivariate response (matrix)
+  #
+  # K: The number of PLS factors in the model which must be less than or
+  #    equal to the  rank of X.
+  #
+  # Returned Value is the vector of PLS regression coefficients
+  #
+  tol <- 1e-10
+  X <- as.matrix(X)
+  Y <- as.matrix(Y)
+  dx <- dim(X)
+  nbclass <- ncol(Y)
+  xbar <- apply(X, 2, sum)/dx[1]
+  ybar <- apply(Y, 2, sum)/dx[1]
+  X0 <- X - outer(rep(1, dx[1]), xbar)
+  Y0 <- Y - outer(rep(1, dx[1]), ybar)
+  W <- matrix(0, dx[2], K)
+  P <- matrix(0, dx[2], K)
+  Q <- matrix(0, nbclass, K)
+  sumofsquaresY <- apply(Y0^2, 2, sum)
+  u <- Y0[, order(sumofsquaresY)[nbclass]]
+  tee <- 0
+  for(i in 1:K) {
+    test <- 1 + tol
+    while(test > tol) {
+      w <- crossprod(X0, u)
+      w <- w/sqrt(crossprod(w)[1])
+      W[, i] <- w
+      teenew <- X0 %*% w
+      test <- sum((tee - teenew)^2)
+      tee <- teenew
+      cee <- crossprod(tee)[1]
+      p <- crossprod(X0, (tee/cee))
+      P[, i] <- p
+      q <- crossprod(Y0, tee)[, 1]/cee
+      u <- Y0 %*% q
+      u <- u/crossprod(q)[1]
+    }
+    Q[, i] <- q
+    X0 <- X0 - tee %*% t(p)
+    Y0 <- Y0 - tee %*% t(q)
   }
-  Knot <- seq(a, b, length = nknot + 2)[ - c(1, nknot + 2)]
-  delta <- sort(c(rep(c(a, b), order.Bspline), Knot))
-  Bspline <- splineDesign(delta, x, order.Bspline)
-  Cmat <- crossprod(Bspline)
-  Dmat1 <- crossprod(Bspline, t(DATA1))
-  coef.mat1 <- symsolve(Cmat, Dmat1)
-  #######################################################################
-  # Numerical integration by the Gauss method :
-  # -------------------------------------------
-  # The objects ending by "gauss" allow us to compute numerically  
-  # integrals by means the "Gauss method" (lx.gauss=6 ==> the computation 
-  # of the integral is exact for polynom of degree less or equal to 11).
-  #######################################################################
-  point.gauss <- c(-0.9324695142, -0.6612093865, -0.2386191861, 
-                   0.2386191861, 0.6612093865, 0.9324695142)
-  weight.gauss <- c(0.1713244924, 0.360761573, 0.4679139346, 0.4679139346,0.360761573, 0.1713244924)
-  x.gauss <- 0.5 * ((b + a) + (b - a) * point.gauss)
-  lx.gauss <- length(x.gauss)
-  Bspline.deriv <- splineDesign(delta, x.gauss, order.Bspline, rep(q, lx.gauss))
-  H <- t(Bspline.deriv) %*% (Bspline.deriv * (weight.gauss * 0.5 * (b - a)))
-  eigH <- eigen(H, sym = T)
-  eigH$values[eigH$values < 0] <- 0
-  Hhalf <- t(eigH$vectors %*% (t(eigH$vectors) * sqrt(eigH$values)))
-  COEF1 <- t(Hhalf %*% coef.mat1)
-  if(twodatasets){
-    Dmat2 <- crossprod(Bspline, t(DATA2))
-    coef.mat2 <- symsolve(Cmat, Dmat2)
-    COEF2 <- t(Hhalf %*% coef.mat2)
-  } else {
-    COEF2 <- COEF1
-  }
-  SEMIMETRIC <- 0
-  nbasis <- nrow(H)
-  for(f in 1:nbasis)
-    SEMIMETRIC <- SEMIMETRIC + outer(COEF1[, f], COEF2[, f], "-")^2
-  return(sqrt(SEMIMETRIC))
+  COEF <- W %*% solve(crossprod(P, W)) %*% t(Q)
+  b0 <- ybar - t(COEF) %*% xbar
+  list(b0 = b0, COEF = COEF)
 }
 
 #####################################################################
 #####################################################################
 
-semimetric.pca <- function(DATA1, DATA2, q)
+semimetric.mplsr <- function(Classes1, DATA1, DATA2, q)
 {
   ###############################################################
-  # Computes between curves a pca-type semimetric based on the
-  # functional principal components analysis method.
+  # Computes between curves a semimetric based on the partial least 
+  # squares method.
+  #    "Classe1" vector containing a categorical response which 
+  #              corresponds to class number for units stored in DATA1
   #    "DATA1" matrix containing a first set of curves stored row by row
   #    "DATA2" matrix containing a second set of curves stored row by row
-  #    "q" the retained number of principal components
+  #    "q" the retained number of factors
   # Returns a "semimetric" matrix containing the semimetric computed 
   # between the curves lying to the first sample and the curves lying  
   # to the second one.
@@ -261,20 +269,28 @@ semimetric.pca <- function(DATA1, DATA2, q)
   if(testfordim) twodatasets <- sum(DATA1==DATA2)!=prod(dim(DATA1))
   qmax <- ncol(DATA1)
   if(q > qmax) stop(paste("give a integer q smaller than ", qmax))
-  n <- nrow(DATA1)
-  COVARIANCE <- t(DATA1) %*% DATA1/n
-  EIGENVECTORS <- eigen(COVARIANCE, sym = T)$vectors[, 1:q]
-  COMPONENT1 <- DATA1 %*% EIGENVECTORS
+  n1 <- nrow(DATA1)
+  nbclass <- max(Classes1)
+  BINARY1 <- matrix(0, nrow = n1, ncol = nbclass)
+  for(g in 1:nbclass) {
+    BINARY1[, g] <- as.numeric(Classes1 == g)
+  }
+  mplsr.res <- mplsr(DATA1, BINARY1, q)
+  COMPONENT1 <- DATA1 %*% mplsr.res$COEF
+  COMPONENT1 <- outer(rep(1, n1), as.vector(mplsr.res$b0)) + COMPONENT1
   if(twodatasets) {
-    COMPONENT2 <- DATA2 %*% EIGENVECTORS
+    n2 <- nrow(DATA2)
+    COMPONENT2 <- DATA2 %*% mplsr.res$COEF
+    COMPONENT2 <- outer(rep(1, n2), as.vector(mplsr.res$b0)) + 
+      COMPONENT2
   }
   else {
     COMPONENT2 <- COMPONENT1
   }
   SEMIMETRIC <- 0
-  for(qq in 1:q)
-    SEMIMETRIC <- SEMIMETRIC + outer(COMPONENT1[, qq], COMPONENT2[, 
-                                                                  qq], "-")^2
+  for(g in 1:nbclass)
+    SEMIMETRIC <- SEMIMETRIC + outer(COMPONENT1[, g], COMPONENT2[, 
+                                                                 g], "-")^2
   return(sqrt(SEMIMETRIC))
 }
 
@@ -391,3 +407,172 @@ funopare.knn.lcv <- function(Response, CURVES, PRED, ..., kind.of.kernel = "quad
                 = Bandwidth.opt, Mse = Mse.estimated))
   }
 }
+
+#####################################################################
+#####################################################################
+
+funopare.quantile.lcv <- function(Response, CURVES, PRED, ..., alpha = c(0.05, 0.5, 0.95), Knearest = NULL, kind.of.kernel = "quadratic", semimetric = "deriv")
+{
+  ################################################################
+  # Performs functional prediction of a scalar response from a 
+  # sample of curves by computing the functional conditional mode. 
+  # A local bandwidth (i.e. local number of neighbours) is selected 
+  # by a ``trivial'' cross-validation procedure.
+  #    "Response" vector containing the observations of the scalar 
+  #               response
+  #    "CURVES" matrix containing the curves dataset (row by row) 
+  #             used for the estimating stage
+  #    "PRED" matrix containing new curves stored row by row
+  #           used for computing predictions
+  #    "..." arguments needed for the call of the function computing 
+  #          the semi-metric between curves
+  #    "alpha"  vector giving the quantiles to be computed. By default, 
+  #             the 5-percentile, median and 95-percentile are computed.
+  #    "Knearest"  vector giving the the sequence of successive authorized 
+  #                integers for the smoothing parameters. By default 
+  #                (i.e. Knearest=NULL), the vector Knearest contains a 
+  #                sequence of 10 integers taking into account card(I1).
+  #    "kind.of.kernel" the kernel function used for computing of 
+  #                     the kernel estimator; you can choose 
+  #                     "indicator", "triangle" or "quadratic (default)
+  #    "semimetric" character string allowing to choose the function 
+  #                 computing the semimetric;  you can select 
+  #                 "deriv" (default), "fourier", "hshift", "mplsr", 
+  #                 and "pca"
+  # Returns a list containing:
+  #    "Estimated.values" a  card(I2)-by-length(alpha) matrix whose 
+  #                       columns gives the corresponding estimated 
+  #                       conditional quantiles, for all curves in the 
+  #                       second learning subsample I2, 
+  #    "Predicted.values" if PRED different from CURVES, this matrix 
+  #                       contains predicted conditional quantiles 
+  #                       for each curve of PRED
+  #    "Response.values"  vector of length the size of the second 
+  #                       learning subsample giving the corresponding  
+  #                       observed responses.
+  #    "Mse" mean squared error between estimated values and 
+  #          observed values
+  ################################################################
+  Response <- as.vector(Response)
+  Logicalpha <- alpha==0.5
+  nomedian <- !as.logical(sum(Logicalpha))
+  if(nomedian) stop("Please, add in the argument alpha the median (i.e 0.5)")
+  lalpha <- length(alpha)
+  testalpha <- lalpha > 1
+  if(testalpha) posmedian <- (1:lalpha)[Logicalpha] 
+  if(is.vector(PRED)) PRED <- as.matrix(t(PRED))
+  onerow <- nrow(PRED) == 1
+  testfordim <- sum(dim(CURVES)==dim(PRED))==2
+  twodatasets <- T
+  if(testfordim) twodatasets <- sum(CURVES==PRED)!=prod(dim(CURVES))
+  sm <- get(paste("semimetric.", semimetric, sep = ""))
+  kernel <- get(kind.of.kernel)
+  int.kernel <- get(paste("integrated.", kind.of.kernel, sep = ""))
+  llearn <- nrow(CURVES)
+  Learn1 <- seq(2, llearn, by=2)
+  llearn1 <- length(Learn1)
+  LEARN1 <- CURVES[Learn1,  ]
+  LEARN2 <- CURVES[ - Learn1,  ]
+  if(semimetric == "mplsr"){
+    SMLEARN1 <- sm(Response, LEARN1, LEARN1, ...)
+    SMLEARN12 <- sm(Response, LEARN1, LEARN2, ...)
+  } else {
+    SMLEARN1 <- sm(LEARN1, LEARN1, ...)
+    SMLEARN12 <- sm(LEARN1, LEARN2, ...)
+  }
+  SML12.SOR <- apply(SMLEARN12, 2, sort)
+  Resp1 <- Response[Learn1]
+  Resp2 <- Response[ - Learn1]
+  Resp.range <- range(Response)
+  Response.grid <- seq(from = Resp.range[1] * 0.9, to = Resp.range[2] * 
+                         1.1, length = 100)	
+  # RESPMETRIC[i,j]=yi-yj with i in Response.grid and j in LEARN1 
+  RESPMETRIC <- outer(Response.grid, Resp1, "-")
+  RESPMET.SOR <- t(apply(abs(RESPMETRIC), 1, sort))
+  llearn2 <- nrow(LEARN2)
+  lgrid <- length(Response.grid)
+  if(is.null(Knearest)) {
+    Knearest.min <- max(ceiling(llearn1 * 0.05), 10)
+    Knearest.max <- ceiling(llearn1 * 0.25)
+    if(Knearest.max <= Knearest.min){
+      Knearest.min <- ceiling(llearn1 * 0.05)
+    }
+    step <- ceiling((Knearest.max - Knearest.min)/10)
+    Knearest <- seq(Knearest.min, Knearest.max, by = step)
+  }
+  lknearest <- length(Knearest)
+  BANDL12.CUR <- 0.5 * (SML12.SOR[Knearest,  ] + SML12.SOR[Knearest + 1, ])
+  BAND.RESP <- 0.5 * (RESPMET.SOR[, Knearest] + RESPMET.SOR[, Knearest + 
+                                                              1])
+  CV <- matrix(0, nrow = lknearest^2, ncol = llearn2)
+  if(testalpha){
+    QUANT <- array(0, dim = c(lknearest^2, llearn2, lalpha))
+    
+  } else {
+    QUANT <- matrix(0, nrow = lknearest^2, ncol = llearn2)
+  }
+  count <- 0
+  for(kk in 1:lknearest) {
+    ARG <- t(t(SMLEARN12)/BANDL12.CUR[kk,])
+    KERNEL.CURVES <- kernel(ARG)
+    KERNEL.CURVES[KERNEL.CURVES < 0] <- 0
+    KERNEL.CURVES[KERNEL.CURVES > 1] <- 0
+    Denom <- apply(KERNEL.CURVES, 2, sum)
+    for(hh in 1:lknearest) {
+      count <- count + 1
+      IKERNEL.RESP <- apply(RESPMETRIC/BAND.RESP[, hh], 1,
+                            int.kernel)
+      CDF.EST <- (t(KERNEL.CURVES)/Denom) %*% IKERNEL.RESP
+      if(testalpha){
+        for(ii in 1:lalpha){
+          Ind.quant <- apply(CDF.EST < alpha[ii], 1, sum)
+          Ind.quant[Ind.quant==0] <- 1
+          QUANT[count,,ii] <- Response.grid[Ind.quant]
+        }
+        CV[count,] <- (Resp2 - QUANT[count,,posmedian])^2
+      } else {
+        Ind.quant <- apply(CDF.EST < alpha, 1, sum)
+        Ind.quant[Ind.quant==0] <- 1
+        QUANT[count, ] <- Response.grid[Ind.quant]
+        CV[count, ] <- (Resp2 - QUANT[count,  ])^2
+      }
+    }
+  }
+  Ind.knearest.opt <- apply(CV, 2, order)[1,  ]
+  IND.OPT <- cbind(Ind.knearest.opt, 1:llearn2)
+  if(testalpha){
+    Indkopt <- rep(Ind.knearest.opt, lalpha)
+    Units <- rep(1:llearn2, lalpha) 
+    Typeofest <- sort(rep(1:lalpha,llearn2))
+    RESPONSE.ESTIMATED <- matrix(QUANT[cbind(Indkopt,Units,Typeofest)], nrow=llearn2, byrow=F)
+    dimnames(RESPONSE.ESTIMATED) <- list(NULL, as.character(alpha))
+  } else {
+    RESPONSE.ESTIMATED <- QUANT[IND.OPT]
+  }
+  Mse.estimated <- sum(CV[IND.OPT])/llearn2
+  if(twodatasets) {
+    if(semimetric == "mplsr")
+      SMLEARN2NEW <- sm(Response, LEARN2, PRED, ...)
+    else SMLEARN2NEW <- sm(LEARN2, PRED, ...)
+    Order.new <- apply(SMLEARN2NEW, 2, order)[1,  ]
+    if(testalpha){
+      if(onerow){
+        RESPONSE.PREDICTED <- as.matrix(t(RESPONSE.ESTIMATED[Order.new,]))
+      } else {
+        RESPONSE.PREDICTED <- as.matrix(RESPONSE.ESTIMATED[Order.new,])
+        dimnames(RESPONSE.PREDICTED) <- list(NULL, as.character(alpha))}
+    } else {
+      RESPONSE.PREDICTED <- RESPONSE.ESTIMATED[Order.new]
+    }
+    return(list(Estimated.values = RESPONSE.ESTIMATED, 
+                Predicted.values = RESPONSE.PREDICTED, Response.values
+                = Resp2, Mse = Mse.estimated))
+  }
+  else {
+    return(list(Estimated.values = RESPONSE.ESTIMATED, 
+                Response.values = Resp2, Mse = Mse.estimated))
+  }
+}
+
+#####################################################################
+#####################################################################
