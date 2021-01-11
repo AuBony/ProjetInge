@@ -117,6 +117,8 @@ lines(seq(0,5,by = 1), seq(0,5,by = 1))
 ### sur donnees propres
 
 load("~/2020-2021/PROJET-INGE/complete_clean_data.RData")
+library(plotly)
+library(ggplot2)
 
 ordta <- dta
 dta <- ordta[,c(seq(1, 882000, by = 100),882001,882002)]
@@ -129,7 +131,7 @@ Response <- train$nb_bk
 CURVES <- as.matrix(train[,1:(ncol(dta)-2)])
 PRED <- as.matrix(test[,1:(ncol(dta)-2)])
 
-res <- funopare.knn.lcv(Response, CURVES, PRED, q = 150, 
+res <- funopare.knn.lcv(Response, CURVES, PRED, q = 195, 
                         kind.of.kernel = "quadratic", semimetric = "mplsr")
 
 plot(test$nb_bk, res$Predicted.values, 
@@ -137,6 +139,52 @@ plot(test$nb_bk, res$Predicted.values,
      xlab = 'variable reponse', ylab = 'prediction',
      main = 'Prediction fonctionnelle en fonction \ndes valeurs observees de nombre de break')
 lines(seq(0,5,by = 1), seq(0,5,by = 1))
+
+mse <- rep(0, 190)
+for (i in 1:190){
+  res <- funopare.knn.lcv(Response, CURVES, PRED, q = i, 
+                           kind.of.kernel = "quadratic", semimetric = "mplsr")
+  pred <- res$Predicted.values
+  mse[i] <- sum((pred - test$nb_bk)^2) / nrow(test)
+}
+plot(1:190, mse, type = 'l',
+     xlab = 'nombre de variables latentes (q)',
+     ylab = 'MSE de la prediction',
+     main = 'Pour methode mplsr, kernel quadratic')
+df <- data.frame('q' = seq(1, 190, by = 1), 'mse' = mse)
+p <- ggplot(df, aes(x = q, y = mse)) +
+  geom_line() +
+  theme_light() +
+  theme(plot.title = element_text()) +
+  labs(title = 'Pour methode mplsr, kernel quadratic')
+ggplotly(p)
+
+# min mse pour q=4 (0.67)
+
+res <- funopare.knn.lcv(Response, CURVES, PRED, q = 108, 
+                        kind.of.kernel = "quadratic", semimetric = "mplsr")
+df2 <- data.frame(response = test$nb_bk, prediction = res$Predicted.values)
+ggplot(df2, aes(x = response, y = prediction)) +
+  geom_segment(aes(x = 0, y = 0, xend = 4, yend = 4)) +
+  geom_point() +
+  stat_density_2d(aes(fill = ..level..), geom="polygon", alpha = 0.1) +
+  scale_fill_gradient(low="blue", high="red") +
+  ylim(0,4) +
+  xlim(0,4) +
+  theme_light()
+
+
+
+res2 <- funopare.quantile.lcv(Response, CURVES, PRED, q = 150, 
+                              alpha = c(0.05, 0.5, 0.95), Knearest = NULL, 
+                              kind.of.kernel = "quadratic", semimetric = "mplsr")
+
+plot(test$nb_bk, res2$Predicted.values, 
+     xlim = c(0,5), ylim = c(0,5),
+     xlab = 'variable reponse', ylab = 'prediction',
+     main = 'Prediction fonctionnelle en fonction \ndes valeurs observees de nombre de break')
+lines(seq(0,5,by = 1), seq(0,5,by = 1))
+
 
 #####################################################################
 #### KERNEL FUNCTIONS
@@ -163,6 +211,20 @@ indicator <- function(u)
   u[Logic1] <- 0
   u[Logic01] <- 1
   return(u)
+}
+
+integrated.quadratic <- function(u)
+{
+  #  integrated quadratic kernel
+  result <- u
+  Logic0 <- (u <= -1)
+  Logic1 <- (u >= 1)
+  Logic2 <- (u > -1 & u < 1)
+  result[Logic0] <- 0
+  result[Logic1] <- 1
+  Uval <- result[Logic2]
+  result[Logic2] <- 0.75 * Uval * (1 - (Uval^2)/3) + 0.5
+  return(result)
 }
 
 #####################################################################
@@ -248,6 +310,50 @@ mplsr <- function(X, Y, K = 5)
 #####################################################################
 #####################################################################
 
+hshift <- function(x,y, grid)
+{
+  ####################################################################
+  # Returns the "horizontal shifted proximity" between two discretized 
+  # curves "x" and "y" (vectors of same length). 
+  # The user has to choose a "grid".
+  #####################################################################
+  lgrid <- length(grid)
+  a <- grid[1]
+  b <- grid[lgrid]
+  rang <- b - a
+  lagmax <- floor(0.2 * rang)
+  integrand <- (x-y)^2
+  Dist1 <- sum(integrand[-1] + integrand[-lgrid])/(2 * rang)
+  Dist2 <- Dist1
+  for(i in 1:lagmax){
+    xlag <- x[-(1:i)]
+    xforward <- x[-((lgrid-i+1):lgrid)]
+    ylag <- y[-(1:i)]
+    yforward <- y[-((lgrid-i+1):lgrid)]
+    integrand1 <- (xlag-yforward)^2
+    integrand2 <- (xforward-ylag)^2
+    lintegrand <- length(integrand1)
+    rescaled.range <- 2 * (rang - 2 * i)
+    Dist1[i+1] <- sum(integrand1[-1] + integrand1[-lintegrand])/rescaled.range
+    Dist2[i+1] <- sum(integrand2[-1] + integrand2[-lintegrand])/rescaled.range
+  }
+  lag1 <- (0:lagmax)[order(Dist1)[1]]
+  lag2 <- (0:lagmax)[order(Dist2)[1]]
+  distmin1 <- min(Dist1)
+  distmin2 <- min(Dist2)
+  if(distmin1 < distmin2){
+    distmin <- distmin1
+    lagopt <- lag1
+  }else{
+    distmin <- distmin2
+    lagopt <- lag2		
+  }
+  return(list(dist=sqrt(distmin),lag=lagopt))
+}
+
+#####################################################################
+#####################################################################
+
 semimetric.mplsr <- function(Classes1, DATA1, DATA2, q)
 {
   ###############################################################
@@ -292,6 +398,47 @@ semimetric.mplsr <- function(Classes1, DATA1, DATA2, q)
     SEMIMETRIC <- SEMIMETRIC + outer(COMPONENT1[, g], COMPONENT2[, 
                                                                  g], "-")^2
   return(sqrt(SEMIMETRIC))
+}
+
+#####################################################################
+#####################################################################
+
+semimetric.hshift <- function(DATA1, DATA2, grid)
+{
+  ###############################################################
+  # Computes between curves a semimetric taking into account an 
+  # horizontal shift effect.   
+  #    "DATA1" matrix containing a first set of curves stored row by row
+  #    "DATA2" matrix containing a second set of curves stored row by row
+  #    "grid" vector which defines the grid (one can choose 1,2,...,nbgrid
+  #           where nbgrid is the number of points of the discretization) 
+  # Returns a "semimetric" matrix containing the semimetric computed 
+  # between the curves lying to the first sample and the curves lying  
+  # to the second one.
+  ###############################################################
+  if(is.vector(DATA1)) DATA1 <- as.matrix(t(DATA1))
+  if(is.vector(DATA2)) DATA2 <- as.matrix(t(DATA2))
+  testfordim <- sum(dim(DATA1)==dim(DATA2))==2
+  twodatasets <- T
+  if(testfordim) twodatasets <- sum(DATA1==DATA2)!=prod(dim(DATA1))
+  n1 <- nrow(DATA1)
+  if(twodatasets) n2 <- nrow(DATA2) else n2 <- n1
+  SEMIMETRIC <- matrix(0, nrow=n1, ncol=n2)
+  if(!twodatasets){
+    for(i in 1:(n1-1)){
+      for(j in (i+1):n2){
+        SEMIMETRIC[i,j] <- hshift(DATA1[i,], DATA2[j,], grid)$dist
+      }  
+    }
+    SEMIMETRIC <- SEMIMETRIC + t(SEMIMETRIC)
+  }else{
+    for(i in 1:n1){
+      for(j in 1:n2){
+        SEMIMETRIC[i,j] <- hshift(DATA1[i,], DATA2[j,], grid)$dist
+      }  
+    }
+  }
+  return(SEMIMETRIC)
 }
 
 #####################################################################
