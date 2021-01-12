@@ -1,7 +1,10 @@
-load("~/2020-2021/PROJET-INGE/Mars.RData")
 library(ggplot2)
 library(plotly)
 library(dplyr)
+
+## MARS DATA
+
+load("~/2020-2021/PROJET-INGE/Mars.RData")
 
 dta <- son2[,seq(1, 1102500, by = 600)]
 
@@ -21,18 +24,36 @@ Response <- train$nb_bk
 CURVES <- as.matrix(train[,-n])
 PRED <- as.matrix(test[,-n])
 
+
+## CLEAN DATA 
+
+load("~/2020-2021/PROJET-INGE/complete_clean_data.RData")
+
+ordta <- dta
+dta <- ordta[,c(seq(1, 882000, by = 100),882001,882002)]
+
+sel <- sample(1:nrow(dta), as.integer(nrow(dta)/3), replace = FALSE)
+train <- dta[-sel,]
+test <- dta[sel,]
+
+Response <- train$nb_bk
+CURVES <- as.matrix(train[,1:(ncol(dta)-2)])
+PRED <- as.matrix(test[,1:(ncol(dta)-2)])
+
+
+############### TRAITEMENT
 # on trace la courbe du mse en fonction du nombre de dimensions gardees pour l'ACP
 # (q), on teste pour q entre 1 et 20
 
-mse <- rep(0, 100)
-for (i in 1:100){
+mse <- rep(0, 30)
+for (i in 1:30){
   res <- funopare.knn.lcv(Response, CURVES, PRED, q = i, 
                           kind.of.kernel = "quadratic", semimetric = "pca")
   pred <- res$Predicted.values
   mse[i] <- sum((pred - test$nb_bk)^2) / nrow(test)
   print(i)
 }
-df <- data.frame('q' = seq(1, 100, by = 1), 'mse' = mse)
+df <- data.frame('q' = seq(1, 30, by = 1), 'mse' = mse)
 p <- ggplot(df, aes(x = q, y = mse)) +
   geom_line() +
   theme_light() +
@@ -45,23 +66,21 @@ ggplotly(p)
 q_opt <- which.min(mse)
 
 # on calcule la prediction pour cette valeur de q
-# 
-# res <- funopare.knn.lcv(Response, CURVES, PRED, q = q_opt,
-#                         kind.of.kernel = "quadratic", semimetric = "pca")
-# 
-# df <- data.frame(response = test$nb_bk, prediction = res$Predicted.values)
-# df <- df %>% add_count(prediction)
-# 
-# ggplot(df, aes(x = response, y = prediction, z = n)) +
-#   geom_segment(aes(x = 0, y = 0, xend = 6, yend = 6)) +
-#   geom_point() +
-#   geom_contour() +
-#   ylim(0,6) +
-#   xlim(0,6) +
-#   theme(plot.title = element_text()) +
-#   labs(title = 'Pour methode pca, kernel quadratic, q_opt = 8') +
-#   theme_light()
-# 
+
+res <- funopare.knn.lcv(Response, CURVES, PRED, q = 107,
+                       kind.of.kernel = "quadratic", semimetric = "mplsr")
+
+df <- data.frame(response = test$nb_bk, prediction = res$Predicted.values)
+df <- df %>% add_count(prediction)
+
+ggplot(df, aes(x = response, y = prediction)) +
+  geom_segment(aes(x = 0, y = 0, xend = 4, yend = 4)) +
+  geom_point(aes(col = n)) +
+  ylim(0,4) +
+  xlim(0,4) +
+  theme(plot.title = element_text()) +
+  labs(title = 'Pour methode pca, kernel quadratic, q_opt = 107') +
+  theme_light()
 
 ###############################################################################
 ################################## FONCTIONS ##################################
@@ -90,6 +109,62 @@ indicator <- function(u)
   u[Logic1] <- 0
   u[Logic01] <- 1
   return(u)
+}
+
+mplsr <- function(X, Y, K = 5)
+{
+  # Copyright (c) October 1993, Mike Denham.
+  # Comments and Complaints to: snsdenhm@reading.ac.uk
+  #
+  # Orthogonal Scores Algorithm for PLS (Martens and Naes, pp. 121--123)
+  #
+  # X: predictors (matrix) 
+  #
+  # Y: multivariate response (matrix)
+  #
+  # K: The number of PLS factors in the model which must be less than or
+  #    equal to the  rank of X.
+  #
+  # Returned Value is the vector of PLS regression coefficients
+  #
+  tol <- 1e-10
+  X <- as.matrix(X)
+  Y <- as.matrix(Y)
+  dx <- dim(X)
+  nbclass <- ncol(Y)
+  xbar <- apply(X, 2, sum)/dx[1]
+  ybar <- apply(Y, 2, sum)/dx[1]
+  X0 <- X - outer(rep(1, dx[1]), xbar)
+  Y0 <- Y - outer(rep(1, dx[1]), ybar)
+  W <- matrix(0, dx[2], K)
+  P <- matrix(0, dx[2], K)
+  Q <- matrix(0, nbclass, K)
+  sumofsquaresY <- apply(Y0^2, 2, sum)
+  u <- Y0[, order(sumofsquaresY)[nbclass]]
+  tee <- 0
+  for(i in 1:K) {
+    test <- 1 + tol
+    while(test > tol) {
+      w <- crossprod(X0, u)
+      w <- w/sqrt(crossprod(w)[1])
+      W[, i] <- w
+      teenew <- X0 %*% w
+      test <- sum((tee - teenew)^2)
+      tee <- teenew
+      cee <- crossprod(tee)[1]
+      p <- crossprod(X0, (tee/cee))
+      P[, i] <- p
+      q <- crossprod(Y0, tee)[, 1]/cee
+      u <- Y0 %*% q
+      u <- u/crossprod(q)[1]
+    }
+    Q[, i] <- q
+    X0 <- X0 - tee %*% t(p)
+    Y0 <- Y0 - tee %*% t(q)
+  }
+  COEF <- W %*% solve(crossprod(P, W)) %*% t(Q)
+  b0 <- ybar - t(COEF) %*% xbar
+  list(b0 = b0, COEF = COEF)
 }
 
 # Fonctions semimetrics
