@@ -24,15 +24,15 @@ PRED <- as.matrix(test[,-n])
 # on trace la courbe du mse en fonction du nombre de dimensions gardees pour l'ACP
 # (q), on teste pour q entre 1 et 20
 
-mse <- rep(0, 20)
-for (i in 1:20){
+mse <- rep(0, 100)
+for (i in 1:100){
   res <- funopare.knn.lcv(Response, CURVES, PRED, q = i, 
                           kind.of.kernel = "quadratic", semimetric = "pca")
   pred <- res$Predicted.values
   mse[i] <- sum((pred - test$nb_bk)^2) / nrow(test)
   print(i)
 }
-df <- data.frame('q' = seq(1, 20, by = 1), 'mse' = mse)
+df <- data.frame('q' = seq(1, 100, by = 1), 'mse' = mse)
 p <- ggplot(df, aes(x = q, y = mse)) +
   geom_line() +
   theme_light() +
@@ -45,23 +45,23 @@ ggplotly(p)
 q_opt <- which.min(mse)
 
 # on calcule la prediction pour cette valeur de q
-
-res <- funopare.knn.lcv(Response, CURVES, PRED, q = q_opt,
-                        kind.of.kernel = "quadratic", semimetric = "pca")
-
-df <- data.frame(response = test$nb_bk, prediction = res$Predicted.values)
-df <- df %>% add_count(prediction)
-
-ggplot(df, aes(x = response, y = prediction, z = n)) +
-  geom_segment(aes(x = 0, y = 0, xend = 6, yend = 6)) +
-  geom_point() +
-  geom_contour() +
-  ylim(0,6) +
-  xlim(0,6) +
-  theme(plot.title = element_text()) +
-  labs(title = 'Pour methode pca, kernel quadratic, q_opt = 8') +
-  theme_light()
-
+# 
+# res <- funopare.knn.lcv(Response, CURVES, PRED, q = q_opt,
+#                         kind.of.kernel = "quadratic", semimetric = "pca")
+# 
+# df <- data.frame(response = test$nb_bk, prediction = res$Predicted.values)
+# df <- df %>% add_count(prediction)
+# 
+# ggplot(df, aes(x = response, y = prediction, z = n)) +
+#   geom_segment(aes(x = 0, y = 0, xend = 6, yend = 6)) +
+#   geom_point() +
+#   geom_contour() +
+#   ylim(0,6) +
+#   xlim(0,6) +
+#   theme(plot.title = element_text()) +
+#   labs(title = 'Pour methode pca, kernel quadratic, q_opt = 8') +
+#   theme_light()
+# 
 
 ###############################################################################
 ################################## FONCTIONS ##################################
