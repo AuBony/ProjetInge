@@ -120,6 +120,9 @@ for (i in 1:nrow(df_wav)){
 
 #DATA TRAIN et DATA TEST Croc VS Mach ----
 library(dplyr)
+
+#df_feature <- as_tibble(read.table("data/data_perso/features/df_feature_01_12_(2).txt"))
+
 croc <- df_feature %>% filter(annotation == "croc")
 mach <- df_feature %>% filter(annotation == "mach")
 
@@ -131,7 +134,7 @@ x_train_c <- df_feature[train_index_c, c(-1:-3)]
 y_train_c <- df_feature[train_index_c, "annotation"]
 x_train_m <- df_feature[train_index_m, c(-1:-3)]
 y_train_m <- df_feature[train_index_m, "annotation"]
-y_train <- c(y_train_c$annotation, y_train_m$annotation)
+y_train <- as.factor(c(y_train_c$annotation, y_train_m$annotation))
 x_train <- as.data.frame(rbind(x_train_c, x_train_m))
 train <- rbind.data.frame(cbind.data.frame(x_train_c, y_train_c),
                           cbind.data.frame(x_train_m, y_train_m),
@@ -144,6 +147,8 @@ x_test_c <- df_feature[-train_index_c, c(-1:-3)]
 y_test_c <- df_feature[-train_index_c, "annotation"]
 x_test_m <- df_feature[-train_index_m, c(-1:-3)]
 y_test_m <- df_feature[-train_index_m, "annotation"]
+y_test <- as.factor(c(y_test_c$annotation, y_test_m$annotation))
+x_test <- as.data.frame(rbind(x_test_c, x_test_m))
 test <- rbind.data.frame(cbind.data.frame(x_test_c, y_test_c),
                           cbind.data.frame(x_test_m, y_test_m),
                           deparse.level = 1)
@@ -155,15 +160,160 @@ test_tot <- rbind.data.frame(cbind.data.frame(x_test_c, df_feature[-train_index_
 
 
 ############# CROC VS MACH #############
-library(randomForest)
-Rf <- randomForest( y_train ~ .,
-                    data = x_train,
-                    ntree = 50,
-                    na.action = na.omit,
-                    importance = TRUE)
-plot(model.50)
+  #Function
+get.error <- function(class,pred){
+  cont.tab <- table(class,pred)
+  return((cont.tab[2,1]+cont.tab[1,2])/(sum(cont.tab)))
+}
 
-pred.test.rf.50 <- predict(model.50, newdata = data.test[,4:20])
-CM.rf.50 <- table(data.test$annotation, pred.test.rf.50)
-CM.rf.50
+get.sensitivity <- function(class,pred){
+  cont.tab <- table(class,pred)
+  return((cont.tab[2,2])/(sum(cont.tab[2,])))
+}
+
+
+get.specificity <- function(class,pred){
+  cont.tab <- table(class,pred)
+  return((cont.tab[1,1])/(sum(cont.tab[1,])))
+}
+
+choose_ntree <- function(vect = c(1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100), y_train, x_train, y_test, x_test){
+  df_ERROR <- data.frame(ntree = numeric(),
+                         Error = numeric (), 
+                         Sens = numeric(),
+                         Spec = numeric())
+  for (tree in vect){
+    ERROR <-0
+    SENS <- 0
+    SPEC <- 0
+    for (i in 1:100){
+      model <- randomForest( y_train~ .,
+                             data = x_train,
+                             ntree = tree,
+                             mtry = 4,
+                             importance = TRUE)
+      pred_test <-  predict(model, newdata = x_test)
+      ERROR <- ERROR + get.error(y_test, pred_test)
+      SENS <- SENS + get.sensitivity(y_test,pred_test)
+      SPEC <- SPEC + get.specificity(y_test,pred_test)
+    }
+    cat("*")
+    df_ERROR <- df_ERROR  %>% add_row(ntree = tree, Error = ERROR/100, Sens = SENS / 100, Spec = SPEC/100)
+  }
+  return(df_ERROR)
+}
+
+plot_dfERROR <- function(df_ERROR){
+  plot(df_ERROR$ntree, df_ERROR$Sens, col = "orange", lwd = 2, type = 'l', ylim = c(0,1), xlab = "ntree", ylab = "")
+  lines(df_ERROR$ntree, df_ERROR$Spec, col = 'green4', lwd = 2)
+  lines(df_ERROR$ntree, df_ERROR$Error, col = 'red', lwd = 2)
+  legend("right",legend = c("ERROR", "Specificity", "Sensitivity"), col = c('red', 'green4', 'orange'), fill =  c('red', 'green4', 'orange'))
+}
+
+  #Random Forest
+library(randomForest)
+library(ROCR)
+    #ntree
+df_ERROR <- choose_ntree(vect = c(1:10, seq(15,100, 5)),y_train = y_train, x_train = x_train, y_test = y_test, x_test = x_test)
+plot_dfERROR(df_ERROR)
+
+    #RandomForest with the nicest ntree
+Rf <- randomForest::randomForest(
+                    y_train ~ .,
+                    data = x_train,
+                    ntree = 40, 
+                    mtry = 4, 
+                    x_test = x_test,
+                    y_test = y_test,
+                    importance = TRUE)
+Rf
+
+    #RandomForest Result
+varImpPlot(Rf)
+Rf$confusion
+Rf$importance
+
+    #ROC
+pred_RF <- predict(Rf, newdata = x_test, type = "prob")
+pred_class <-  prediction(pred_RF[,2], y_test)
+pred.test <- predict(Rf, newdata = x_test)
+performance_RF <- performance(pred_class,measure = "tpr",x.measure= "fpr")
+plot(performance_RF, col = 4, lwd = 2)
+abline(0,1)
+
+  #Comparing classic data_feature and  enhanced data_feature
+
+    #functions
+give_train_test_1 <- function(feature, seed = 123){
+  set.seed(seed)
+  croc <- feature %>% filter(annotation == "croc")
+  mach <- feature %>% filter(annotation == "mach")
+  
+  train_index_c <- sample(1:nrow(croc), 0.8 * nrow(croc))
+  train_index_m <- sample(1:nrow(mach), 0.70 * nrow(mach))
+  
+  #Train
+  x_train_c <- feature[train_index_c, c(-1:-3)]
+  y_train_c <- feature[train_index_c, "annotation"]
+  x_train_m <- feature[train_index_m, c(-1:-3)]
+  y_train_m <- feature[train_index_m, "annotation"]
+  y_train <- as.factor(c(y_train_c$annotation, y_train_m$annotation))
+  x_train <- as.data.frame(rbind(x_train_c, x_train_m))
+  train <- rbind.data.frame(cbind.data.frame(x_train_c, y_train_c),
+                            cbind.data.frame(x_train_m, y_train_m),
+                            deparse.level = 1)
+  train_tot <- rbind.data.frame(cbind.data.frame(x_train_c, feature[train_index_c, c(1:3)]),
+                                cbind.data.frame(x_train_m, feature[train_index_m, c(1:3)]),
+                                deparse.level = 1)
+  
+  #Test  
+  x_test_c <- feature[-train_index_c, c(-1:-3)]
+  y_test_c <- feature[-train_index_c, "annotation"]
+  x_test_m <- feature[-train_index_m, c(-1:-3)]
+  y_test_m <- feature[-train_index_m, "annotation"]
+  y_test <- as.factor(c(y_test_c$annotation, y_test_m$annotation))
+  x_test <- as.data.frame(rbind(x_test_c, x_test_m))
+  test <- rbind.data.frame(cbind.data.frame(x_test_c, y_test_c),
+                           cbind.data.frame(x_test_m, y_test_m),
+                           deparse.level = 1)
+  test_tot <- rbind.data.frame(cbind.data.frame(x_test_c, feature[-train_index_c, c(1:3)]),
+                               cbind.data.frame(x_test_m, feature[-train_index_m, c(1:3)]),
+                               deparse.level = 1)
+  
+  return(list(y_train, x_train, y_test, x_test))
+}
+
+    #Comparing
+require(dplyr)
+data_feature_classic <- as_tibble(read.table("data/data_perso/features/df_feature_01_12.txt"))
+data_feature_enhanced <- as_tibble(read.table("data/data_perso/features/df_feature_01_12.txt"))
+
+data_classic <- give_train_test_1(feature = data_feature_classic)
+y_train_classic <- data_classic[[1]]
+x_train_classic <- data_classic[[2]]
+y_test_classic <- data_classic[[3]]
+x_test_classic <- data_classic[[4]]
+
+data_enhanced <- give_train_test_1(feature = data_feature_enhanced)
+y_train_enhanced <- data_enhanced[[1]]
+x_train_enhanced <- data_enhanced[[2]]
+y_test_enhanced <- data_enhanced[[3]]
+x_test_enhanced <- data_enhanced[[4]]
+
+Rf_classic <- randomForest::randomForest(
+  y_train_classic ~ .,
+  data = x_train_classic,
+  ntree = 40, 
+  mtry = 4,
+  importance = TRUE)
+
+Rf_enhanced <- randomForest::randomForest(
+  y_train_enhanced ~ .,
+  data = x_train_enhanced,
+  ntree = 40, 
+  mtry = 4,
+  importance = TRUE)
+
+Rf_classic
+Rf_enhanced
 ############# Event VS NoEvent #############
