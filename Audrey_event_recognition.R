@@ -47,7 +47,7 @@ give_feature <- function(df_wav_line, shift = 0, df = df_feature){
                        to = df_wav_line[[4]] + shift,
                        units = "seconds") 
   #
-  sp <- specprop(spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
+  sp <- specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
   #
   df <- df %>% add_row(id = df_wav_line$id,
                                        filename = df_wav_line$filename,
@@ -135,20 +135,24 @@ init_df_feature <- function(){
   return(df)
 }
 
+give_feature_enhanced_df <- function(data){
+  require(seewave)
+  
+  feature <- init_df_feature()
+  for (i in 1:nrow(data)){
+    feature <- give_feature(data[i,])
+    if (data$annotation[i] == "croc") {
+      feature <- give_feature(data[i,], shift = 0.1)
+      feature <- give_feature(data[i,], shift = - 0.1)
+    }
+  }
+}
+
 #Algorithm
 getwd()
 wav_path <- "ProjetInge/cleanwav/"
 
-require(seewave)
-df_feature <- init_df_feature()
-
-for (i in 1:nrow(df_wav)){
-  df_feature <- give_feature(df_wav[i,])
-  if (df_wav$annotation[i] == "croc") {
-    df_feature <- give_feature(df_wav[i,], shift = 0.1)
-    df_feature <- give_feature(df_wav[i,], shift = - 0.1)
-  }
-}
+df_feature <- give_feature_enhanced_df(data = df_wav)
 
 #write.table(df_feature, file = "data/data_perso/features/df_feature_01_12_(2).txt")
 
@@ -191,8 +195,41 @@ test_tot <- rbind.data.frame(cbind.data.frame(x_test_c, df_feature[-train_index_
                               deparse.level = 1)
 
 #DATA TRAIN et DATA TEST Event VS NoEVent ----
+head(df_wav)
+file_wav_path <- "ProjetInge/cleanwav/"
+df_wav_line <- df_wav[3,]
+require(tuneR)
+wav_file <- readWave(paste0(file_wav_path, df_wav_line[[2]]), units = "seconds") 
 
+head(df_wav)
 
+give_classif_event <- function(window_length = 0.8){
+  df_classif <- tibble(filename = character(),
+                       start = numeric(),
+                       end = numeric(),
+                       event = numeric())
+                   
+  #Etape 1 : Parcourir les enregistrements labellés
+  for (audio_path in unique(df_wav$filename)) {
+    
+    audio <- readWave(paste0(file_wav_path, audio_path))
+    duration <- round(length(audio@left) / audio@samp.rate, 2)
+    #Etape 2 : Déplacement dans un enregistrement par frame
+    for (moment in seq(0, duration - window_length, by = window_length)){
+      
+      #Etape 3 : Définir si la frame est un event (1) ou non (0)
+      df_classif <- df_classif %>% add_row(filename = audio_path,
+                                           start = moment,
+                                           end = moment + window_length,
+                                           event = dim(df_wav %>%  filter(filename == audio_path, start < (moment + window_length) & start > moment))[1]
+                                             )
+    }
+    
+  }
+}
+
+df_wav[df_wav$filename == audio_path, "start"]
+df_wav %>%  filter(filename == audio_path, start < (moment + window_length) & start > moment)
 ############# CROC VS MACH #############
   #Function
 get.error <- function(class,pred){
