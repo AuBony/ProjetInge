@@ -30,7 +30,7 @@ PRED <- as.matrix(test[,-n])
 load("~/2020-2021/PROJET-INGE/complete_clean_data.RData")
 
 ordta <- dta
-dta <- ordta[,c(seq(1, 882000, by = 100),882001,882002)]
+dta <- ordta[,c(seq(1, 882000, by = 500),882001,882002)]
 
 sel <- sample(1:nrow(dta), as.integer(nrow(dta)/3), replace = FALSE)
 train <- dta[-sel,]
@@ -48,7 +48,7 @@ PRED <- as.matrix(test[,1:(ncol(dta)-2)])
 mse <- rep(0, 30)
 for (i in 1:30){
   res <- funopare.knn.lcv(Response, CURVES, PRED, q = i, 
-                          kind.of.kernel = "quadratic", semimetric = "pca")
+                          kind.of.kernel = "quadratic", semimetric = "mplsr")
   pred <- res$Predicted.values
   mse[i] <- sum((pred - test$nb_bk)^2) / nrow(test)
   print(i)
@@ -67,19 +67,19 @@ q_opt <- which.min(mse)
 
 # on calcule la prediction pour cette valeur de q
 
-res <- funopare.knn.lcv(Response, CURVES, PRED, q = 107,
+res <- funopare.knn.lcv(Response, CURVES, PRED, q = 1000,
                        kind.of.kernel = "quadratic", semimetric = "mplsr")
 
 df <- data.frame(response = test$nb_bk, prediction = res$Predicted.values)
 df <- df %>% add_count(prediction)
 
 ggplot(df, aes(x = response, y = prediction)) +
-  geom_segment(aes(x = 0, y = 0, xend = 4, yend = 4)) +
+  geom_segment(aes(x = 0, y = 0, xend = 7, yend = 7)) +
   geom_point(aes(col = n)) +
-  ylim(0,4) +
-  xlim(0,4) +
+  ylim(0,7) +
+  xlim(0,7) +
   theme(plot.title = element_text()) +
-  labs(title = 'Pour methode pca, kernel quadratic, q_opt = 107') +
+  labs(title = 'Pour methode pca, kernel quadratic, q_opt = 2') +
   theme_light()
 
 ###############################################################################
