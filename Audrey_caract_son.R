@@ -5,7 +5,6 @@
 
 
 ############# LABEL #############
-
 # Solution dplyr (source : https://clauswilke.com/blog/2016/06/13/reading-and-combining-many-tidy-data-files-in-r/)----
 require(readr)  # for read_csv()
 require(dplyr)  # for mutate()
@@ -46,6 +45,7 @@ df_wav$filename <- str_replace(df_txt$filename, ".txt", ".wav")
 
 #Retirer prune_B_1
 df_wav <- df_wav[df_wav$filename != "prune_B_1.wav",]
+
 # Solution sans le nom des fichiers ----
 multmerge <- function(mypath = getwd()){
   require(dplyr)
@@ -81,19 +81,19 @@ ggplot(df_wav, aes(x=annotation, y=duration, fill=annotation)) +
   geom_violin() +
   ggtitle("Durée des crocs et des mastications")
 
-df %>% filter(annotation == "croc") %>% 
+df_wav %>% filter(annotation == "croc") %>% 
   ggplot(aes(x = duration)) +
   geom_density(fill = "#69b3a2", color = "#69b3a2", alpha = 0.8) +
   ggtitle("Durée des crocs")
 
-df %>% filter(annotation == "mach") %>% 
+df_wav %>% filter(annotation == "mach") %>% 
   ggplot(aes(x = duration)) +
   geom_density(fill = "#69b3a2", color = "#69b3a2", alpha = 0.8) +
   ggtitle("Durée des mastications")
 
 #
 hist(df_wav$duration,breaks =  100)
-density(df$duration)
+density(df_wav$duration)
 
 ggplot(df_wav, aes(x = duration)) +
   geom_density(fill = "#69b3a2", color = "#69b3a2", alpha = 0.8) +
@@ -188,7 +188,8 @@ for (i in 1:nrow(df_wav)){
                           ) 
 }
 
-#write.table(df_feature, file = "data/data_perso/features/df_feature_01_07.txt")
+#write.table(df_feature, file = "data/data_perso/features/df_feature_01_12.txt")
+df_feature <- read.table("data/data_perso/features/df_feature_01_07.txt")
 
 a <- readWave("ProjetInge/cleanwav/cathy_A_1.wav", from = df_wav[3,3], to = df_wav[3,4],
               units = "seconds")
@@ -262,8 +263,13 @@ df_feature %>%
     z = ~th,
     color = ~kibble,
     marker = list(symbol = "circle", sizemode = 'diameter'))
+# ACP #
+library(Factoshiny)
+Factoshiny(df_feature)
 
 ## MODEL ALGORITHM ----
+
+## CLASSIFICATION CROC MACH ##
 # source : https://towardsdatascience.com/classifying-rare-events-using-five-machine-learning-techniques-fab464573233
 
 #library
@@ -307,20 +313,19 @@ library(randomForest)
 
 x_train <- df_feature[ind.train, 4:20]
 y_train <-  df_feature[ind.train, "annotation"]
-y_train$annotation <- as.factor(y_train$annotation)
+y_train <- as.factor(y_train)
 
 x_test <- df_feature[-ind.train, 4:20]
 y_test <- df_feature[-ind.train, "annotation"]
 
-##Calcul des temps d'execution
-T1<-Sys.time()
-model.50 <- randomForest( y_train$annotation~ .,
+##Choix du meilleur nombre d'arbres
+model.50 <- randomForest( y_train~ .,
                           data = as.data.frame(data.train[,4:20]),
                           ntree = 50, na.action = na.omit,
                           importance = TRUE)
 plot(model.50)
 
-pred.test.rf.50 <- predict(model.50, newdata = data.test[,4:6])
+pred.test.rf.50 <- predict(model.50, newdata = data.test[,4:20])
 CM.rf.50 <- table(data.test$annotation, pred.test.rf.50)
 CM.rf.50
 
@@ -328,25 +333,62 @@ get.error(data.test$annotation,pred.test.rf.50)
 get.specificity(data.test$annotation,pred.test.rf.50)
 get.sensitivity(data.test$annotation,pred.test.rf.50)
 
+df_ERROR <- data.frame(ntree = numeric(),
+                       Error = numeric (), 
+                       Sens = numeric(),
+                       Spec = numeric())
+for (tree in c(1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100)){
+  ERROR <-0
+  SENS <- 0
+  SPEC <- 0
+  for (i in 1:100){
+    model <- randomForest( y_train~ .,
+                           data = as.data.frame(data.train[,4:20]),
+                           ntree = tree, na.action = na.omit,
+                           importance = TRUE)
+    pred_test <-  predict(model, newdata = data.test[,4:20])
+    ERROR <- ERROR + get.error(data.test$annotation, pred_test)
+    SENS <- SENS + get.sensitivity(data.test$annotation,pred_test)
+    SPEC <- SPEC + get.specificity(data.test$annotation,pred_test)
+  }
+  df_ERROR <- df_ERROR  %>% add_row(ntree = tree, Error = ERROR/100, Sens = SENS / 100, Spec = SPEC/100)
+}
+
+plot(df_ERROR$ntree, df_ERROR$Sens, col = "orange", lwd = 2, type = 'l', ylim = c(0,1), xlab = "ntree", ylab = "")
+lines(df_ERROR$ntree, df_ERROR$Spec, col = 'green4', lwd = 2)
+lines(df_ERROR$ntree, df_ERROR$Error, col = 'red', lwd = 2)
+legend("right",legend = c("ERROR", "Specificity", "Sensitivity"), col = c('red', 'green4', 'orange'), fill =  c('red', 'green4', 'orange'))
+
+#
+#ERROR.50 = 0.1161
+#
+
 # ROC Curve
 library(ROCR)
 AUC <- matrix(NA, nrow=5, ncol=1)
 colnames(AUC) <- c("AUC") 
 rownames(AUC) <- c("KNN", "RF")
 
-knn_model <- knn(train=data.train[,4:20],test=data.test[,4:20],cl= data.train$annotation,k=11, prob = TRUE)
+knn_model <- knn(train=data.train[,4:20],test=data.test[,4:20],cl= data.train$annotation,k=10, prob = TRUE)
 prob <- attr(knn_model, "prob")
 prob <- 2*ifelse(knn_model == "-1", prob,1-prob) - 1
 pred_knn <- prediction(prob, data.test$annotation)
 performance_knn <- performance(pred_knn, "tpr", "fpr")
-plot(performance_knn, col = 5, add = TRUE)
+#plot(performance_knn, col = 5, lwd = 1)
+plot(performance_knn, col = 5, lwd = 1, add = TRUE)
 
 pred_RF <- predict(model.50, newdata = data.test[,4:20], type = "prob")
 pred_class <-  prediction(pred_RF[,2], data.test$annotation)
 performance_RF <- performance(pred_class,measure = "tpr",x.measure= "fpr")
-plot(performance_RF, col = 3, add = TRUE)
+plot(performance_RF, col = 3, lwd = 2, add = TRUE)
 abline(0,1)
+legend("bottomright", col = c(5,3), legend = c("Knn", "Random Forest"), fill = c(5,3))
 
+## CLASSIFICATION EVENT/NO EVENT ##
+df_feature <- read.table("data/data_perso/features/df_feature_01_07.txt")
 
 ## RARE EVENT DETECTION ----
 #source : https://towardsdatascience.com/classifying-rare-events-using-five-machine-learning-techniques-fab464573233
+
+
+
