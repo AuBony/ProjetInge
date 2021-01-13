@@ -7,7 +7,7 @@
 
 df_feature <- read.table("data/data_perso/features/df_feature_01_12.txt")
 
-# MAJ du DATASET ----
+#MAJ du DATASET ----
 #DATA_WAV ----
 require(readr)  # for read_csv()
 require(dplyr)  # for mutate()
@@ -71,6 +71,40 @@ give_feature <- function(df_wav_line, shift = 0, df = df_feature){
                                        ssfm = sp$sfm,
                                        ssh = sp$sh,
                                        sprec = sp$prec
+  ) 
+  return(df)
+}
+
+give_feature_standard <- function(df_wav_line, shift = 0, df = df_feature, window.l = 0.8){
+  wav_file <- readWave(paste0(wav_path, df_wav_line[[2]]),
+                       from = df_wav_line[[3]] + shift,
+                       to = df_wav_line[[3]] + window.l + shift,
+                       units = "seconds") 
+  #
+  sp <- specprop(spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
+  #
+  df <- df %>% add_row(id = df_wav_line$id,
+                       filename = df_wav_line$filename,
+                       annotation = df_wav_line$annotation,
+                       
+                       th = th(env(wav_file, plot = FALSE)),
+                       maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
+                       meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
+                       
+                       smean = sp$mean,
+                       ssd = sp$sd,
+                       ssem = sp$sem,
+                       smedian = sp$median,
+                       smode = sp$mode,
+                       sQ25 = sp$Q25,
+                       sQ75 = sp$Q75,
+                       sIQR = sp$IQR,
+                       scent = sp$cent,
+                       sskewness = sp$skewness,
+                       skurtosis = sp$kurtosis,
+                       ssfm = sp$sfm,
+                       ssh = sp$sh,
+                       sprec = sp$prec
   ) 
   return(df)
 }
@@ -244,13 +278,13 @@ abline(0,1)
   #Comparing classic data_feature and  enhanced data_feature
 
     #functions
-give_train_test_1 <- function(feature, seed = 123){
+give_train_test_1 <- function(feature, seed = 123, percent_croc = 0.8, percent_mach = 0.7){
   set.seed(seed)
   croc <- feature %>% filter(annotation == "croc")
   mach <- feature %>% filter(annotation == "mach")
   
-  train_index_c <- sample(1:nrow(croc), 0.8 * nrow(croc))
-  train_index_m <- sample(1:nrow(mach), 0.70 * nrow(mach))
+  train_index_c <- sample(1:nrow(croc), percent_croc * nrow(croc))
+  train_index_m <- sample(1:nrow(mach), percent_mach * nrow(mach))
   
   #Train
   x_train_c <- feature[train_index_c, c(-1:-3)]
@@ -288,7 +322,7 @@ require(dplyr)
 data_feature_classic <- as_tibble(read.table("data/data_perso/features/df_feature_01_12.txt"))
 data_feature_enhanced <- as_tibble(read.table("data/data_perso/features/df_feature_01_12.txt"))
 
-data_classic <- give_train_test_1(feature = data_feature_classic)
+data_classic <- give_train_test_1(feature = data_feature_classic, percent_croc = 0.7, percent_mach = 0.7)
 y_train_classic <- data_classic[[1]]
 x_train_classic <- data_classic[[2]]
 y_test_classic <- data_classic[[3]]
@@ -316,4 +350,53 @@ Rf_enhanced <- randomForest::randomForest(
 
 Rf_classic
 Rf_enhanced
+
+plot(performance_RF_c, col = 4, lwd = 1)
+plot(performance_RF_e, col = 3, lwd = 1, add = TRUE)
+legend("bottomright", legend = c("Classic","Enhanced"), col = c(4,3), fill = c(4,3))
+
+plot(1, type = "n", xlim = c(0,1), ylim = c(0,1))
+abline(0,1)
+for (i in 1:10) {
+  data_classic <- give_train_test_1(feature = data_feature_classic, percent_croc = 0.7, percent_mach = 0.7, seed = i)
+  y_train_classic <- data_classic[[1]]
+  x_train_classic <- data_classic[[2]]
+  y_test_classic <- data_classic[[3]]
+  x_test_classic <- data_classic[[4]]
+  
+  data_enhanced <- give_train_test_1(feature = data_feature_enhanced, seed = i)
+  y_train_enhanced <- data_enhanced[[1]]
+  x_train_enhanced <- data_enhanced[[2]]
+  y_test_enhanced <- data_enhanced[[3]]
+  x_test_enhanced <- data_enhanced[[4]]
+  
+  Rf_classic <- randomForest::randomForest(
+    y_train_classic ~ .,
+    data = x_train_classic,
+    ntree = 40, 
+    mtry = 4,
+    importance = TRUE)
+  
+  Rf_enhanced <- randomForest::randomForest(
+    y_train_enhanced ~ .,
+    data = x_train_enhanced,
+    ntree = 40, 
+    mtry = 4,
+    importance = TRUE)
+  
+  pred_RF_c <- predict(Rf_classic, newdata = x_test_classic, type = "prob")
+  pred_class_c <-  prediction(pred_RF_c[,2], y_test_classic)
+  pred.test_c <- predict(Rf_classic, newdata = x_test_classic)
+  performance_RF_c <- performance(pred_class_c,measure = "tpr",x.measure= "fpr")
+  plot(performance_RF_c, col = 4, lwd = 1, add = TRUE)
+  
+  pred_RF_e <- predict(Rf_enhanced, newdata = x_test_enhanced, type = "prob")
+  pred_class_e <-  prediction(pred_RF_e[,2], y_test_enhanced)
+  pred.test_e <- predict(Rf_enhanced, newdata = x_test_enhanced)
+  performance_RF_e <- performance(pred_class_e,measure = "tpr",x.measure= "fpr")
+  plot(performance_RF_e, col = 3, lwd = 1, add = TRUE)
+  
+  legend("bottomright", legend = c("Classic","Enhanced"), col = c(4,3), fill = c(4,3))
+}
+
 ############# Event VS NoEvent #############
