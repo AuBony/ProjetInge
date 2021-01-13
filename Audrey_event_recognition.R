@@ -42,6 +42,10 @@ library(seewave)
 
 #function
 give_feature <- function(df_wav_line, shift = 0, df = df_feature){
+  # Obtenir les features pour un événement
+  # input : une ligne de df_wav(id, filename, start, end, annotation, ...)
+  # output : un tableau avec les features pour chaque événement libéllé df_feature(filename, annotation, features)
+  
   wav_file <- readWave(paste0(wav_path, df_wav_line[[2]]),
                        from = df_wav_line[[3]] + shift,
                        to = df_wav_line[[4]] + shift,
@@ -195,15 +199,13 @@ test_tot <- rbind.data.frame(cbind.data.frame(x_test_c, df_feature[-train_index_
                               deparse.level = 1)
 
 #DATA TRAIN et DATA TEST Event VS NoEVent ----
-head(df_wav)
-file_wav_path <- "ProjetInge/cleanwav/"
-df_wav_line <- df_wav[3,]
-require(tuneR)
-wav_file <- readWave(paste0(file_wav_path, df_wav_line[[2]]), units = "seconds") 
 
-head(df_wav)
-
-give_classif_event <- function(window_length = 0.8){
+give_classif_event <- function(window_length = 0.8, data = df_wav){
+  require(tuneR)
+  require(dplyr)
+  
+  file_wav_path <- "ProjetInge/cleanwav/"
+  
   df_classif <- tibble(filename = character(),
                        start = numeric(),
                        end = numeric(),
@@ -221,15 +223,17 @@ give_classif_event <- function(window_length = 0.8){
       df_classif <- df_classif %>% add_row(filename = audio_path,
                                            start = moment,
                                            end = moment + window_length,
-                                           event = dim(df_wav %>%  filter(filename == audio_path, start < (moment + window_length) & start > moment))[1]
+                                           event = dim(df_wav %>%  filter(filename == audio_path, (start < (moment + window_length) & start > moment) | (end < (moment + window_length) & end > moment)))[1]
                                              )
     }
-    
   }
+  return(df_classif)
 }
 
-df_wav[df_wav$filename == audio_path, "start"]
-df_wav %>%  filter(filename == audio_path, start < (moment + window_length) & start > moment)
+  #Execution
+
+df_event <- give_classif_event(data = df_wav, window_length = 0.1)
+df_event
 ############# CROC VS MACH #############
   #Function
 get.error <- function(class,pred){
