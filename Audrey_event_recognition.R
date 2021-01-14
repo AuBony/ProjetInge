@@ -261,7 +261,7 @@ give_feature_event <- function(df_event, wav_path = "ProjetInge/cleanwav/"){
     #
     sp <- specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
     #
-    df <- df %>% add_row(filename = df_event$filename,
+    df <- df %>% add_row(filename = df_event[j,1],
                          start = df_event[j,2],
                          end = df_event[j,3],
                          event = df_event[j,4],
@@ -324,9 +324,10 @@ init_df_feature_event<- function(){
 wav_path <- "ProjetInge/cleanwav/"
 df_event <- as.data.frame(give_classif_event(data = df_wav, window_length = 0.1))
 df_event
-df_feature_event <- give_feature_event(df_event = df_event, wav_path = "ProjetInge/cleanwav/")
+df_feature_event <- as.data.frame(give_feature_event(df_event = df_event, wav_path = "ProjetInge/cleanwav/"))
 #write.table(as.data.frame(df_feature_event), file = "data/data_perso/features/df_feature_event_01_14.txt")
-df_feature_event <- as.data.frame(df_feature_event)
+df_feature_event <- df_feature_event %>% mutate(event = replace(event, event == 2, 1))
+
 
 ############# CROC VS MACH #############
   #Function
