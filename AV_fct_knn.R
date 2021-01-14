@@ -41,19 +41,19 @@ CURVES <- as.matrix(train[,1:(ncol(dta)-2)])
 PRED <- as.matrix(test[,1:(ncol(dta)-2)])
 
 
-############### TRAITEMENT
+############### TRAITEMENT -----
 # on trace la courbe du mse en fonction du nombre de dimensions gardees pour l'ACP
 # (q), on teste pour q entre 1 et 20
 
-mse <- rep(0, 30)
-for (i in 1:30){
+mse <- rep(0, 750)
+for (i in 1:750){
   res <- funopare.knn.lcv(Response, CURVES, PRED, q = i, 
                           kind.of.kernel = "quadratic", semimetric = "mplsr")
   pred <- res$Predicted.values
   mse[i] <- sum((pred - test$nb_bk)^2) / nrow(test)
   print(i)
 }
-df <- data.frame('q' = seq(1, 30, by = 1), 'mse' = mse)
+df <- data.frame('q' = seq(1, 750, by = 1), 'mse' = mse)
 p <- ggplot(df, aes(x = q, y = mse)) +
   geom_line() +
   theme_light() +
@@ -67,7 +67,7 @@ q_opt <- which.min(mse)
 
 # on calcule la prediction pour cette valeur de q
 
-res <- funopare.knn.lcv(Response, CURVES, PRED, q = 1000,
+res <- funopare.knn.lcv(Response, CURVES, PRED, q = 750,
                        kind.of.kernel = "quadratic", semimetric = "mplsr")
 
 df <- data.frame(response = test$nb_bk, prediction = res$Predicted.values)
