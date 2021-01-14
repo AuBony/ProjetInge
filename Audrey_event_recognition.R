@@ -204,6 +204,7 @@ test_tot <- rbind.data.frame(cbind.data.frame(x_test_c, df_feature[-train_index_
 
 #DATA TRAIN et DATA TEST Event VS NoEVent ----
 
+  #Function
 give_classif_event <- function(window_length = 0.8, data = df_wav){
   require(tuneR)
   require(dplyr)
@@ -261,7 +262,9 @@ give_feature_event <- function(df_event, wav_path = "ProjetInge/cleanwav/"){
     sp <- specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
     #
     df <- df %>% add_row(filename = df_event$filename,
-                         event = df_event$event,
+                         start = df_event[j,2],
+                         end = df_event[j,3],
+                         event = df_event[j,4],
                          
                          th = th(env(wav_file, plot = FALSE)),
                          maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
@@ -289,6 +292,8 @@ give_feature_event <- function(df_event, wav_path = "ProjetInge/cleanwav/"){
 
 init_df_feature_event<- function(){
   df <- tibble(filename = character(),
+               start = numeric(),
+               end = numeric(),
                event = numeric(),
                
                th = numeric(),
@@ -320,6 +325,8 @@ wav_path <- "ProjetInge/cleanwav/"
 df_event <- as.data.frame(give_classif_event(data = df_wav, window_length = 0.1))
 df_event
 df_feature_event <- give_feature_event(df_event = df_event, wav_path = "ProjetInge/cleanwav/")
+#write.table(as.data.frame(df_feature_event), file = "data/data_perso/features/df_feature_event_01_14.txt")
+df_feature_event <- as.data.frame(df_feature_event)
 
 ############# CROC VS MACH #############
   #Function
