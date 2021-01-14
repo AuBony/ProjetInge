@@ -220,10 +220,14 @@ give_classif_event <- function(window_length = 0.8, data = df_wav){
     for (moment in seq(0, duration - window_length, by = window_length)){
       
       #Etape 3 : Définir si la frame est un event (1) ou non (0)
+      
+      isevent <- dim(df_wav %>%  filter(filename == audio_path,
+                                        ((start <= moment) & ((moment + window_length) < end))) | ( (moment < start) & (start < moment+window_length)) | ( (moment < end) & (end < moment+window_length)))[1]
+      
       df_classif <- df_classif %>% add_row(filename = audio_path,
                                            start = moment,
                                            end = moment + window_length,
-                                           event = dim(df_wav %>%  filter(filename == audio_path, (start < (moment + window_length) & start > moment) | (end < (moment + window_length) & end > moment)))[1]
+                                           event =isevent
                                              )
     }
   }
