@@ -45,6 +45,9 @@ give_feature <- function(df_wav_line, shift = 0, df = df_feature){
   # Obtenir les features pour un événement
   # input : une ligne de df_wav(id, filename, start, end, annotation, ...)
   # output : un tableau avec les features pour chaque événement libéllé df_feature(filename, annotation, features)
+  require(soundgen)
+  require(tuneR)
+  require(seewave)
   
   wav_file <- readWave(paste0(wav_path, df_wav_line[[2]]),
                        from = df_wav_line[[3]] + shift,
@@ -152,6 +155,7 @@ give_feature_enhanced_df <- function(data){
   }
 }
 
+
 #Algorithm
 getwd()
 wav_path <- "ProjetInge/cleanwav/"
@@ -204,8 +208,6 @@ give_classif_event <- function(window_length = 0.8, data = df_wav){
   require(tuneR)
   require(dplyr)
   
-  file_wav_path <- "ProjetInge/cleanwav/"
-  
   df_classif <- tibble(filename = character(),
                        start = numeric(),
                        end = numeric(),
@@ -222,7 +224,7 @@ give_classif_event <- function(window_length = 0.8, data = df_wav){
       #Etape 3 : Définir si la frame est un event (1) ou non (0)
       
       isevent <- dim(df_wav %>%  filter(filename == audio_path,
-                                        ((start <= moment) & ((moment + window_length) < end))) | ( (moment < start) & (start < moment+window_length)) | ( (moment < end) & (end < moment+window_length)))[1]
+                                        ((start <= moment) & ((moment + window_length) < end)) | ( (moment < start) & (start < moment+window_length)) | ((moment < end) & (end < moment+window_length)) ))[1]
       
       df_classif <- df_classif %>% add_row(filename = audio_path,
                                            start = moment,
@@ -234,10 +236,91 @@ give_classif_event <- function(window_length = 0.8, data = df_wav){
   return(df_classif)
 }
 
-  #Execution
+give_feature_event <- function(df_event, wav_path = "ProjetInge/cleanwav/"){
+  # Obtenir les features pour un événement
+  # input : une ligne de df_wav(id, filename, start, end, annotation, ...)
+  # output : un tableau avec les features pour chaque événement libéllé df_feature(filename, annotation, features)
+  require(soundgen)
+  require(tuneR)
+  require(seewave)
+  wav_path <- wav_path
+  df <- init_df_feature_event()
+  
+  for (j in 1:nrow(df_event)){
+    if (j%%100){
+      cat(".")
+    }else{
+      cat(".", "\n")
+    }
+    
+    wav_file <- readWave(paste0(wav_path, df_event[j,1]),
+                         from = df_event[j,2],
+                         to = df_event[j,3],
+                         units = "seconds") 
+    #
+    sp <- specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
+    #
+    df <- df %>% add_row(filename = df_event$filename,
+                         event = df_event$event,
+                         
+                         th = th(env(wav_file, plot = FALSE)),
+                         maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
+                         meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
+                         
+                         smean = sp$mean,
+                         ssd = sp$sd,
+                         ssem = sp$sem,
+                         smedian = sp$median,
+                         smode = sp$mode,
+                         sQ25 = sp$Q25,
+                         sQ75 = sp$Q75,
+                         sIQR = sp$IQR,
+                         scent = sp$cent,
+                         sskewness = sp$skewness,
+                         skurtosis = sp$kurtosis,
+                         ssfm = sp$sfm,
+                         ssh = sp$sh,
+                         sprec = sp$prec
+    ) 
+  }
 
-df_event <- give_classif_event(data = df_wav, window_length = 0.1)
+  return(df)
+}
+
+init_df_feature_event<- function(){
+  df <- tibble(filename = character(),
+               event = numeric(),
+               
+               th = numeric(),
+               maxdfreq = numeric(),
+               meandfreq = numeric(),
+               
+               smean = numeric(),
+               ssd = numeric(),
+               ssem = numeric(),
+               smedian = numeric(),
+               smode = numeric(),
+               sQ25 = numeric(),
+               sQ75 = numeric(),
+               sIQR = numeric(),
+               scent = numeric(),
+               sskewness = numeric(),
+               skurtosis = numeric(),
+               ssfm = numeric(),
+               ssh = numeric(),
+               sprec = numeric())
+  return(df)
+}
+
+
+
+
+  #Execution
+wav_path <- "ProjetInge/cleanwav/"
+df_event <- as.data.frame(give_classif_event(data = df_wav, window_length = 0.1))
 df_event
+df_feature_event <- give_feature_event(df_event = df_event, wav_path = "ProjetInge/cleanwav/")
+
 ############# CROC VS MACH #############
   #Function
 get.error <- function(class,pred){
