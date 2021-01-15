@@ -226,7 +226,7 @@ give_classif_event <- function(window_length = 0.8, data = df_wav){
       
       isevent <- dim(df_wav %>%  filter(filename == audio_path,
                                         ((start <= moment) & ((moment + window_length) < end)) | ( (moment < start) & (start < moment+window_length)) | ((moment < end) & (end < moment+window_length)) ))[1]
-      
+      isevent <- ifelse(isevent > 2, yes = 1, no = isevent)  
       df_classif <- df_classif %>% add_row(filename = audio_path,
                                            start = moment,
                                            end = moment + window_length,
@@ -317,16 +317,32 @@ init_df_feature_event<- function(){
   return(df)
 }
 
-
-
-
   #Execution
 wav_path <- "ProjetInge/cleanwav/"
 df_event <- as.data.frame(give_classif_event(data = df_wav, window_length = 0.1))
 df_event
 df_feature_event <- as.data.frame(give_feature_event(df_event = df_event, wav_path = "ProjetInge/cleanwav/"))
 #write.table(as.data.frame(df_feature_event), file = "data/data_perso/features/df_feature_event_01_14.txt")
-df_feature_event <- df_feature_event %>% mutate(event = replace(event, event == 2, 1))
+#df_feature_event <- df_feature_event %>% mutate(event = replace(event, event == 2, 1))
+    
+    #Factoshiny
+require(Factoshiny)
+df_feature_event$event <- as.character(df_feature_event$event)
+Factoshiny(df_feature_event)
+
+    #Data train test
+train_index_event <- sample(1:nrow(df_feature_event), 0.7 * nrow(df_feature_event))
+y_train_event <- as.factor(df_feature_event[train_index_event, "event"])
+x_train_event <- df_feature_event[train_index_event, 5:21]
+train_event <- cbind.data.frame(x_train_event,
+                          y_train_event,
+                          deparse.level = 1)
+#Test  
+y_test_event <- as.factor(df_feature_event[-train_index_event, "event"])
+x_test_event <- as.data.frame(df_feature_event[-train_index_event, 5:21])
+test_event <- cbind.data.frame(x_train_event,
+                         y_train_event,
+                         deparse.level = 1)
 
 
 ############# CROC VS MACH #############
@@ -348,6 +364,7 @@ get.specificity <- function(class,pred){
 }
 
 choose_ntree <- function(vect = c(1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100), y_train, x_train, y_test, x_test){
+  require(dplyr)
   df_ERROR <- data.frame(ntree = numeric(),
                          Error = numeric (), 
                          Sens = numeric(),
@@ -536,3 +553,93 @@ for (i in 1:10) {
 }
 
 ############# Event VS NoEvent #############
+
+#RF
+library(randomForest)
+library(ROCR)
+
+  #ntree
+df_ERROR <- choose_ntree(vect = seq(1, 100, by = 10),y_train = y_train_event, x_train = x_train_event, y_test = y_test_event, x_test = x_test_event)
+plot_dfERROR(df_ERROR)
+
+  # Window length
+require(dplyr)
+df_ERROR_window <- data.frame(window = numeric(),
+                              event_1 = numeric(),
+                              event_0 = numeric(),
+                              Error = numeric (), 
+                              Sens = numeric(),
+                              Spec = numeric())
+for (window in seq(0.1, 0.8, by = 0.1)){
+  df_event_1 <- as.data.frame(give_classif_event(data = df_wav, window_length = window))
+  df_feature_event_1 <- as.data.frame(give_feature_event(df_event = df_event_1, wav_path = "ProjetInge/cleanwav/"))
+  
+  ERROR <- 0
+  SENS <- 0
+  SPEC <- 0
+  
+  for (run in (1:10)){
+    cat("*")
+    train_index_event_1 <- sample(1:nrow(df_feature_event_1), 0.7 * nrow(df_feature_event_1))
+    y_train_event_1 <- as.factor(df_feature_event[train_index_event_1, "event"])
+    x_train_event_1 <- df_feature_event_1[train_index_event_1, 5:21]
+    train_event_1 <- cbind.data.frame(x_train_event_1,
+                                      y_train_event_1,
+                                      deparse.level = 1)
+    #Test  
+    y_test_event_1 <- as.factor(df_feature_event_1[-train_index_event_1, "event"])
+    x_test_event_1 <- as.data.frame(df_feature_event_1[-train_index_event_1, 5:21])
+    test_event_1 <- cbind.data.frame(x_train_event_1,
+                                     y_train_event_1,
+                                     deparse.level = 1)
+    
+    model_event_1 <- randomForest::randomForest(y_train_event_1 ~ ., data = x_train_event_1,
+                                                ntree = 40,
+                                                importance = TRUE)
+    
+    
+    pred_test_1 <-  predict(model_event_1, newdata = x_test_event_1)
+    ERROR <- ERROR + get.error(y_test_event_1, pred_test_1)
+    SENS <- SENS + get.sensitivity(y_test_event_1,pred_test_1)
+    SPEC <- SPEC + get.specificity(y_test_event_1,pred_test_1)
+  }
+
+  df_ERROR_window <- df_ERROR_window %>% add_row(window = window,
+                                                 event_1 = nrow(df_event_1[df_event_1$event == "1",]),
+                                                 event_0 = nrow(df_event_1[df_event_1$event == "0",]),
+                                                 Error = ERROR / 10,
+                                                 Sens = SENS / 10,
+                                                 Spec = SPEC / 10)
+  cat("\n")
+  }
+
+plot_dfERROR_window <- function(df_ERROR){
+  plot(df_ERROR$window, df_ERROR$Sens, col = "orange", lwd = 2, type = 'l', ylim = c(0,1), xlab = "window length", ylab = "", main = "Event Detection")
+  lines(df_ERROR$window, df_ERROR$Spec, col = 'green4', lwd = 2)
+  lines(df_ERROR$window, df_ERROR$Error, col = 'red', lwd = 2)
+  legend("right",legend = c("ERROR", "Specificity", "Sensitivity"), col = c('red', 'green4', 'orange'), fill =  c('red', 'green4', 'orange'))
+}
+
+df_ERROR_window
+plot_dfERROR_window(df_ERROR_window)
+
+df_ggplot_event  
+require(tidyr)
+require(ggplot2)
+df_ERROR_window %>% select(window, event_1, event_0) %>%  gather(event, value, event_0:event_1) %>% 
+ggplot(aes(x = window, y = value, fill = event)) +
+  geom_bar(stat = 'identity', position = "dodge") +
+  scale_fill_brewer(palette = "Set1") +
+  ggtitle("Déséquilibre des données en fonction de la taille de la fenêtre") +
+  ylab("") +
+  theme_bw()+
+  theme(plot.title = element_text(size=20, face="bold"))
+
+  #Model
+model_event <- randomForest::randomForest(y_train_event ~ ., data = x_train_event,
+                                          ntree = 40,
+                                          importance = TRUE)
+plot(model_event)
+model_event
+varImpPlot(model_event)
+
