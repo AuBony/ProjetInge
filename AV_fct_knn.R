@@ -45,20 +45,20 @@ PRED <- as.matrix(test[,1:(ncol(dta)-2)])
 # on trace la courbe du mse en fonction du nombre de dimensions gardees pour l'ACP
 # (q), on teste pour q entre 1 et 20
 
-mse <- rep(0, 750)
-for (i in 1:750){
+mse <- rep(0, 20)
+for (i in 1:20){
   res <- funopare.knn.lcv(Response, CURVES, PRED, q = i, 
                           kind.of.kernel = "quadratic", semimetric = "mplsr")
   pred <- res$Predicted.values
   mse[i] <- sum((pred - test$nb_bk)^2) / nrow(test)
   print(i)
 }
-df <- data.frame('q' = seq(1, 750, by = 1), 'mse' = mse)
+df <- data.frame('q' = seq(1, 20, by = 1), 'mse' = mse)
 p <- ggplot(df, aes(x = q, y = mse)) +
   geom_line() +
   theme_light() +
   theme(plot.title = element_text()) +
-  labs(title = 'Pour methode pca, kernel quadratic')
+  labs(title = 'Pour methode mplsr, kernel quadratic')
 ggplotly(p)
 
 # on choisi le q optimal, cad celui ou le mse est minimal
@@ -67,7 +67,7 @@ q_opt <- which.min(mse)
 
 # on calcule la prediction pour cette valeur de q
 
-res <- funopare.knn.lcv(Response, CURVES, PRED, q = 750,
+res <- funopare.knn.lcv(Response, CURVES, PRED, q = q_opt,
                        kind.of.kernel = "quadratic", semimetric = "mplsr")
 
 df <- data.frame(response = test$nb_bk, prediction = res$Predicted.values)
@@ -79,7 +79,7 @@ ggplot(df, aes(x = response, y = prediction)) +
   ylim(0,7) +
   xlim(0,7) +
   theme(plot.title = element_text()) +
-  labs(title = 'Pour methode pca, kernel quadratic, q_opt = 2') +
+  labs(title = 'Pour methode mplsr, kernel quadratic, q_opt = 150') +
   theme_light()
 
 ###############################################################################
