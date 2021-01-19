@@ -12,7 +12,7 @@ require(tidyr)  # for unnest()
 require(purrr)  # for map(), reduce()
 library(stringr) # for str_replace()
 
-data_path <- "data/data_perso/labels/"
+data_path <- "ProjetInge/labels/"
 files <- dir(data_path, pattern = "*.txt")
 
 data <- tibble(filename = files) %>%
@@ -30,3 +30,5 @@ data <- tibble(filename = files) %>%
 data_id <- cbind.data.frame(data_frame(id = seq(1, nrow(data))), data)
 data_wav <- data_id
 data_wav$filename <- str_replace(data_wav$filename, ".txt", ".wav")
+data_wav
+
