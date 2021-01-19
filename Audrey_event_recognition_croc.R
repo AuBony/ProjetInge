@@ -54,17 +54,60 @@ apply(f, FUN = sum, 2)
 
 
 # Train Croc
-for (audio in unique(data_wav$filename)){
+
+give_croc_train <- function(wl, percent_expansion){
   require(dplyr)
+  df_feature_event <- tibble(filename = character(),
+                             start = numeric(),
+                             end = numeric(),
+                             event = numeric(),
+                             
+                             th = th(env(wav_file, plot = FALSE)),
+                             maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
+                             meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
+                             
+                             smean = sp$mean,
+                             ssd = sp$sd,
+                             ssem = sp$sem,
+                             smedian = sp$median,
+                             smode = sp$mode,
+                             sQ25 = sp$Q25,
+                             sQ75 = sp$Q75,
+                             sIQR = sp$IQR,
+                             scent = sp$cent,
+                             sskewness = sp$skewness,
+                             skurtosis = sp$kurtosis,
+                             ssfm = sp$sfm,
+                             ssh = sp$sh,
+                             sprec = sp$prec)
   
-  audio <- readWave(paste0(file_wav_path, audio_path))
-  dat <- data_wav %>% filter(filename ==  audio)
-  
-  for(l_croc in 1:nrow(dat)){
+  #Selection d'un enregistrement
+  for (audio in unique(data_wav$filename)){
+    
+    crocs <- data_wav %>% filter(filename ==  audio)
+    
+    #Selection d'un événement croc 
+    for(l_croc in 1:nrow(crocs)){
+      
+      #Definition d'une zone de sample pour nos frames (on peut définir un interval un peu plus grand)
+      duration <- dat[l_croc,"end"] - dat[l_croc,"start"] + 2*(wl*percent_expansion)
+      
+        #Decoupage en frame
+      for (moment in seq(from =  dat[l_croc,"start"] - (wl*percent_expansion), to = dat[l_croc,"end"] + (wl*percent_expansion))){
+        
+        wav_file <- readWave(paste0(wav_path, df_event[j,1]),
+                             from = moment,
+                             to = moment + wl,
+                             units = "seconds") 
+        #Features de la frame
+      }
+        
+    }
     
   }
   
 }
+
 
 #Function
 give_classif_event <- function(window_length = 0.8, data = df_wav){
