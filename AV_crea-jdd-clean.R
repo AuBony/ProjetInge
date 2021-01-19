@@ -74,3 +74,6 @@ imp_left <- function(filename){
   return(vec)
 }
 
+# df = tableau avec les intervalles start et end des evenements
+# pour calculer le nb de crocs par enregistrement
+# df %>% group_by(filename) %>% summarise(nb_bk = n())
