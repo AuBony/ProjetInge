@@ -642,4 +642,5 @@ model_event <- randomForest::randomForest(y_train_event ~ ., data = x_train_even
 plot(model_event)
 model_event
 varImpPlot(model_event)
+model_event$confusion
 
