@@ -166,23 +166,23 @@ give_no_event <- function(frame_size = 0.1, ovlp_frame = 0, wav_path = "ProjetIn
                              end = numeric(),
                              event = numeric(),
                              
-                             th = th(env(wav_file, plot = FALSE)),
-                             maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
-                             meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
+                             th = numeric(),
+                             maxdfreq =  numeric(),
+                             meandfreq =  numeric(),
                              
-                             smean = sp$mean,
-                             ssd = sp$sd,
-                             ssem = sp$sem,
-                             smedian = sp$median,
-                             smode = sp$mode,
-                             sQ25 = sp$Q25,
-                             sQ75 = sp$Q75,
-                             sIQR = sp$IQR,
-                             scent = sp$cent,
-                             sskewness = sp$skewness,
-                             skurtosis = sp$kurtosis,
-                             ssfm = sp$sfm,
-                             ssh = sp$sh)
+                             smean =  numeric(),
+                             ssd =  numeric(),
+                             ssem =  numeric(),
+                             smedian =  numeric(),
+                             smode =  numeric(),
+                             sQ25 =  numeric(),
+                             sQ75 =  numeric(),
+                             sIQR =  numeric(),
+                             scent =  numeric(),
+                             sskewness =  numeric(),
+                             skurtosis =  numeric(),
+                             ssfm =  numeric(),
+                             ssh =  numeric())
   
   #Selection d'un enregistrement
   for (audio in unique(df_wav$filename)){
@@ -216,7 +216,7 @@ give_no_event <- function(frame_size = 0.1, ovlp_frame = 0, wav_path = "ProjetIn
           #Features de la frame
           sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
           #
-          df_feature_no_event <- df_feature_event %>% add_row(
+          df_feature_no_event <- df_feature_no_event %>% add_row(
             filename = audio,
             start = moment,
             end = moment + frame_size,
@@ -265,19 +265,29 @@ detection  <- rbind.data.frame(croc, no_event)
 
 #Data train test
 set.seed(1234)
-train_index_event <- sample(1:nrow(detection), 0.7 * nrow(detection))
-y_train_event <- as.factor(detection[train_index_event, "event"])
-x_train_event <- detection[train_index_event, 5:20]
-train_event <- cbind.data.frame(x_train_event,
-                                y_train_event,
-                                deparse.level = 1)
-#Test  
-y_test_event <- as.factor(df_feature_event[-train_index_event, "event"])
-x_test_event <- as.data.frame(df_feature_event[-train_index_event, 5:20])
-test_event <- cbind.data.frame(x_train_event,
-                               y_train_event,
-                               deparse.level = 1)
+train_index_event_croc <- sample(1:nrow(croc), 0.7 * nrow(croc))
+y_train_event_croc <- croc[train_index_event_croc, "event"]
+x_train_event_croc <- croc[train_index_event_croc, 5:20]
 
+train_index_event_no_event <- sample(1:nrow(no_event), 0.7 * nrow(no_event))
+y_train_event_no_event <- no_event[train_index_event_no_event, "event"]
+x_train_event_no_event <- no_event[train_index_event_no_event, 5:20]
+
+y_train_event <- as.factor(c(y_train_event_croc, y_train_event_no_event))
+x_train_event <- rbind.data.frame(x_train_event_croc, x_train_event_no_event)
+
+
+#Test  
+test_index_event_croc <- sample(1:nrow(croc), 0.7 * nrow(croc))
+y_test_event_croc <- croc[test_index_event_croc, "event"]
+x_test_event_croc <- croc[test_index_event_croc, 5:20]
+
+test_index_event_no_event <- sample(1:nrow(no_event), 0.7 * nrow(no_event))
+y_test_event_no_event <- no_event[test_index_event_no_event, "event"]
+x_test_event_no_event <- no_event[test_index_event_no_event, 5:20]
+
+y_test_event <- as.factor(c(y_test_event_croc, y_test_event_no_event))
+x_test_event <- rbind.data.frame(x_test_event_croc, x_test_event_no_event)
 
 
 
@@ -339,3 +349,15 @@ plot_dfERROR <- function(df_ERROR){
 
 
   #Model ----
+require(randomForest)
+
+RF <- randomForest::randomForest(
+  y_train_event ~ .,
+  data = x_train_event,
+  ntree = 40, 
+  mtry = 4, 
+  x_test = x_test_event,
+  y_test = y_test_event,
+  importance = TRUE)
+
+RF
