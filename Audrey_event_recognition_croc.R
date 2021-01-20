@@ -55,8 +55,11 @@ apply(f, FUN = sum, 2)
 
 # Train Croc
 
-give_croc_train <- function(wl, percent_expansion){
+give_croc_train <- function(frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0, wav_path = "ProjetInge/cleanwav/" ){
   require(dplyr)
+  require(tuneR)
+  require(seewave)
+  
   df_feature_event <- tibble(filename = character(),
                              start = numeric(),
                              end = numeric(),
@@ -78,152 +81,71 @@ give_croc_train <- function(wl, percent_expansion){
                              sskewness = sp$skewness,
                              skurtosis = sp$kurtosis,
                              ssfm = sp$sfm,
-                             ssh = sp$sh,
-                             sprec = sp$prec)
+                             ssh = sp$sh)
   
   #Selection d'un enregistrement
   for (audio in unique(data_wav$filename)){
+    
+    cat(".")
     
     crocs <- data_wav %>% filter(filename ==  audio)
     
     #Selection d'un événement croc 
     for(l_croc in 1:nrow(crocs)){
       
+      
       #Definition d'une zone de sample pour nos frames (on peut définir un interval un peu plus grand)
-      duration <- dat[l_croc,"end"] - dat[l_croc,"start"] + 2*(wl*percent_expansion)
+      duration <- crocs[l_croc,"end"] - crocs[l_croc,"start"] + 2*(frame_size*percent_expansion)
       
         #Decoupage en frame
-      for (moment in seq(from =  dat[l_croc,"start"] - (wl*percent_expansion), to = dat[l_croc,"end"] + (wl*percent_expansion))){
+      for (moment in seq(from =  crocs[l_croc,"start"] - (frame_size*percent_expansion), to = crocs[l_croc,"end"] + (frame_size*percent_expansion), by = frame_size * (1-ovlp_frame))){
         
-        wav_file <- readWave(paste0(wav_path, df_event[j,1]),
+        wav_file <- readWave(paste0(wav_path, audio),
                              from = moment,
-                             to = moment + wl,
+                             to = moment + frame_size,
                              units = "seconds") 
         #Features de la frame
+        sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
+        #
+        df_feature_event <- df_feature_event %>% add_row(
+                             filename = audio,
+                             start = moment,
+                             end = moment + frame_size,
+                             event = 1,
+                             
+                             th = seewave::th(env(wav_file, plot = FALSE)),
+                             maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
+                             meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
+                             
+                             smean = sp$mean,
+                             ssd = sp$sd,
+                             ssem = sp$sem,
+                             smedian = sp$median,
+                             smode = sp$mode,
+                             sQ25 = sp$Q25,
+                             sQ75 = sp$Q75,
+                             sIQR = sp$IQR,
+                             scent = sp$cent,
+                             sskewness = sp$skewness,
+                             skurtosis = sp$kurtosis,
+                             ssfm = sp$sfm,
+                             ssh = sp$sh)
       }
         
     }
     
   }
   
+  return(as.data.frame(df_feature_event))
 }
 
 
-#Function
-give_classif_event <- function(window_length = 0.8, data = df_wav){
-  require(tuneR)
-  require(dplyr)
-  
-  df_classif <- tibble(filename = character(),
-                       start = numeric(),
-                       end = numeric(),
-                       event = numeric())
-  
-  #Etape 1 : Parcourir les enregistrements labellisés
-  for (audio_path in unique(df_wav$filename)) {
-    
-    audio <- readWave(paste0(file_wav_path, audio_path))
-    duration <- round(length(audio@left) / audio@samp.rate, 2)
-    #Etape 2 : Déplacement dans un enregistrement par frame
-    for (moment in seq(0, duration - window_length, by = window_length)){
-      
-      #Etape 3 : Définir si la frame est un event (1) ou non (0)
-      
-      isevent <- dim(df_wav %>%  filter(filename == audio_path,
-                                        ((start <= moment) & ((moment + window_length) < end)) | ( (moment < start) & (start < moment+window_length)) | ((moment < end) & (end < moment+window_length)) ))[1]
-      isevent <- ifelse(isevent > 2, yes = 1, no = isevent)  
-      df_classif <- df_classif %>% add_row(filename = audio_path,
-                                           start = moment,
-                                           end = moment + window_length,
-                                           event =isevent
-      )
-    }
-  }
-  return(df_classif)
-}
 
-give_feature_event <- function(df_event, wav_path = "ProjetInge/cleanwav/"){
-  # Obtenir les features pour un événement
-  # input : une ligne de df_wav(id, filename, start, end, annotation, ...)
-  # output : un tableau avec les features pour chaque événement libéllé df_feature(filename, annotation, features)
-  require(soundgen)
-  require(tuneR)
-  require(seewave)
-  wav_path <- wav_path
-  df <- init_df_feature_event()
-  
-  for (j in 1:nrow(df_event)){
-    if (j%%100){
-      cat(".")
-    }else{
-      cat(".", "\n")
-    }
-    
-    wav_file <- readWave(paste0(wav_path, df_event[j,1]),
-                         from = df_event[j,2],
-                         to = df_event[j,3],
-                         units = "seconds") 
-    #
-    sp <- specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
-    #
-    df <- df %>% add_row(filename = df_event[j,1],
-                         start = df_event[j,2],
-                         end = df_event[j,3],
-                         event = df_event[j,4],
-                         
-                         th = th(env(wav_file, plot = FALSE)),
-                         maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
-                         meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
-                         
-                         smean = sp$mean,
-                         ssd = sp$sd,
-                         ssem = sp$sem,
-                         smedian = sp$median,
-                         smode = sp$mode,
-                         sQ25 = sp$Q25,
-                         sQ75 = sp$Q75,
-                         sIQR = sp$IQR,
-                         scent = sp$cent,
-                         sskewness = sp$skewness,
-                         skurtosis = sp$kurtosis,
-                         ssfm = sp$sfm,
-                         ssh = sp$sh,
-                         sprec = sp$prec
-    ) 
-  }
-  
-  return(df)
-}
-
-init_df_feature_event<- function(){
-  df <- tibble(filename = character(),
-               start = numeric(),
-               end = numeric(),
-               event = numeric(),
-               
-               th = numeric(),
-               maxdfreq = numeric(),
-               meandfreq = numeric(),
-               
-               smean = numeric(),
-               ssd = numeric(),
-               ssem = numeric(),
-               smedian = numeric(),
-               smode = numeric(),
-               sQ25 = numeric(),
-               sQ75 = numeric(),
-               sIQR = numeric(),
-               scent = numeric(),
-               sskewness = numeric(),
-               skurtosis = numeric(),
-               ssfm = numeric(),
-               ssh = numeric(),
-               sprec = numeric())
-  return(df)
-}
 
 #Execution
 wav_path <- "ProjetInge/cleanwav/"
+df_feature_event <- give_croc_train()
+
 df_event <- as.data.frame(give_classif_event(data = df_wav, window_length = 0.1))
 df_event
 df_feature_event <- as.data.frame(give_feature_event(df_event = df_event, wav_path = "ProjetInge/cleanwav/"))
