@@ -14,33 +14,71 @@ l <- 2
 plot(1:(n-2), testcr[l,-c(n-1, n)], type = 'l')
 print(testcr[l,c(n-1, n)])
 
-# importation avec normalisation des donnees
+# importation/comptage avec normalisation des donnees
 
 library(tuneR)
+require(dplyr)
+require(tidyr)
+require(purrr)
+require(readr)
 
-path <- '~/GitHub/ProjetInge/cleanwav'
+path <- '~/GitHub/ProjetInge/'
 
-ech1 <- readWave(paste0(path,'/cathy_A_1.wav'))
-ech1norm <- normalize(ech1, center = TRUE)
-plot(ech1norm)
+# COMPTAGE
 
-ech2 <- readWave(paste0(path,'/cathy_A_2.wav'))
-ech2norm <- normalize(ech2, center = TRUE)
-plot(ech2norm)
-
-ech3 <- readWave(paste0(path,'/cathy_A_3.wav'))
-ech3norm <- normalize(ech3, center = TRUE)
-plot(ech3norm)
-
-l <- list(ech1norm,ech2norm,ech3norm)
-count <- rep(0,length(l))
-n <- 1
-for (i in 1:n){
-  vec <- l[[i]]@left
-  vecsel <- (vec > 0.6 | vec < -0.6)
-  which(vecsel)
-  
+fich <- list.files(paste0(path,'cleanwav'))
+wavlist <- list(normalize(readWave(paste0(path,'cleanwav/',fich[1])), center = TRUE))
+for (k in 2:length(fichl)){
+  wavlist[[k]] <- normalize(readWave(paste0(path,'cleanwav/',fich[k])),center = TRUE)
 }
+
+count <- rep(0,length(wavlist))
+n <- length(wavlist)
+amp_lim <- 0.5
+diff_lim <- 4400
+for (i in 1:n){
+  c <- 1
+  vec <- wavlist[[i]]@left
+  vecsel <- which(vec > amp_lim | vec < -amp_lim)
+  if (length(vecsel) == 0){
+    c <- 0
+  } else if (length(vecsel) > 1) {
+    for (k in 2:length(vecsel)){
+      if (vecsel[k]-vecsel[k-1] > diff_lim){
+        c <- c+1
+      }
+    }}
+  count[i] <- c
+}
+print(count)
+
+# IMPORTATION DES NB_BK
+
+data_path <- paste0(path,'labels/')
+files <- dir(data_path, pattern = "*.txt")
+
+data <- data_frame(filename = files) %>%
+  mutate(file_contents = map(filename,         
+                             ~ read_delim(file.path(data_path, .),
+                                          delim="\t",
+                                          escape_double = FALSE,
+                                          col_names = c("start", "end", "annotation"),
+                                          trim_ws = TRUE)))
+data_modif <- unnest(data, cols = c(file_contents))
+
+data_modif_chat_kibble_duration <- data_modif %>% 
+  mutate(chat = as.character(map(strsplit(data_modif$filename, "_"), 1)), 
+         kibble = as.character(map(strsplit(data_modif$filename, "_"), 2)),
+         duration = end-start)
+df_txt <- cbind.data.frame(data_frame(id = seq(1, nrow(data_modif_chat_kibble_duration))), data_modif_chat_kibble_duration)
+df_wav <- df_txt
+df_wav$filename <- str_replace(df_txt$filename, ".txt", ".wav")
+df_wav
+
+
+fichlab <- list.files(paste0(path,'labels/'))
+
+
 
 # ecart minimal entre 2 crocs? on va prendre 0.1 sec pour l'instant, apres on pourra
 # regarder la vraie valeur
