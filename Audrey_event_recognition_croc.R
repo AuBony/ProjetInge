@@ -16,14 +16,20 @@ library(stringr) # for str_replace()
 data_path <- "ProjetInge/labels/"
 files <- dir(data_path, pattern = "*.txt")
 
-data <- data_frame(filename = files) %>%
+data <- tibble(filename = files) %>%
   mutate(file_contents = map(filename,         
                              ~ read_delim(file.path(data_path, .),
                                           delim="\t",
                                           escape_double = FALSE,
                                           col_names = c("start", "end", "annotation"),
                                           trim_ws = TRUE)))
-data_modif <- unnest(data, cols = c(file_contents))
+vec_noms <- c()
+for (k in 1:nrow(data)){
+  vec_noms <- c(vec_noms,rep(data[[1]][[k]],nrow(data[[2]][[k]])))
+}
+
+data_modif <- data.frame(filename = vec_noms, start = data[[2]][[1]][,1], 
+                     end = data[[2]][[1]][,2], annotation = data[[2]][[1]][,3])
 
 data_modif_chat_kibble_duration <- data_modif %>% 
   mutate(chat = as.character(map(strsplit(data_modif$filename, "_"), 1)), 
@@ -39,21 +45,6 @@ df_wav
 library(soundgen)
 library(tuneR)
 library(seewave)
-
-#Trouver les pics
-ffilter <- 500 # Fréquence minimale analysée
-lim_db <- -20 # Seuil de décibel pour le comptage 
-
-a <- readWave("ProjetInge/cleanwav/notchi_B_2.wav")
-audio <- ffilter(a, f = a@samp.rate, channel = 1, from = 0, to = ffilter, bandpass = FALSE,
-        custom = NULL, wl = 1024, ovlp = 75, wn = "hanning", fftw = FALSE,
-        rescale=FALSE, listen=FALSE, output="Wave")
-spe <- spectro(audio)
-mat <- spe$amp 
-f <- mat > lim_db
-apply(f, FUN = sum, 2)
-
-
 
 # TRAIN CROC
 #
@@ -270,6 +261,8 @@ no_event<- give_no_event()
 
 
 # DATASET COMPLET CROC ET NO EVENT
+croc <- give_croc()
+no_event <- give_no_event()
 detection  <- rbind.data.frame(croc, no_event)
 
 #Data train test
@@ -375,6 +368,8 @@ varImpPlot(RF)
 RF$confusion
 RF$importance
 
+
+
 require(ROCR)
 pred_RF <- predict(RF, newdata = x_test_event, type = "prob")
 pred_class <-  prediction(pred_RF[,2], y_test_event)
@@ -382,6 +377,11 @@ pred.test <- predict(RF, newdata = x_test_event)
 performance_RF <- performance(pred_class,measure = "tpr",x.measure= "fpr")
 plot(performance_RF, col = 4, lwd = 2)
 abline(0,1)
+
+get.error(y_test_event, pred_test)
+
+
+
 # TEST DES PARAMETRES D'ECHANTILLONNAGE ----
 
 
@@ -468,6 +468,59 @@ y <- df_ERROR$ovl
 z <- df_ERROR$Error
 s=interp(x,y,z,duplicate="strip")
 surface3d(s$x,s$y,s$z,color="blue")
+
+plot_ly(x = s$x, y = s$y, z = s$z, type = "contour")
+
+plot_ly(x = s$x, y = s$y, z = s$z) %>%
+  add_surface(
+    contours = list(
+      z = list(
+        show = TRUE,
+        usecolormap = TRUE,
+        highlightcolor = "#ff0000",
+        project = list(z = TRUE)
+      )
+    )
+  ) %>% 
+  layout(
+    title = "Error"
+  )
+
+range.grid <- seq(1, 80, length = 40) 
+frobs.grid <- seq(0, .2, length = 40)
+data.grid <- expand.grid(r = range.grid, fr = frobs.grid)
+data.grid$fr2=data.grid$fr*data.grid$fr
+data.grid$fr3=data.grid$fr2*data.grid$fr
+data.grid$r2=data.grid$r*data.grid$r
+data.grid$r3=data.grid$r2*data.grid$r
+x <- matrix(range.grid, nrow = 20, ncol = 1)
+y <- matrix(frobs.grid, nrow = 1, ncol = 20)
+
+aff <- function(){
+  fig <- plot_ly(y = range.grid, x = frobs.grid, z = mat) 
+  
+  %>% add_surface(
+    contours = list(
+      z = list(
+        show = TRUE,
+        usecolormap = TRUE,
+        highlightcolor = "#ff0000",
+        project = list(z = TRUE)
+      )
+    )
+  )
+  fig <- fig %>% layout(
+    title = "Clone Error (Sc.1)",
+    scene = list(
+      xaxis = yaxis,
+      yaxis = xaxis,
+      zaxis = zaxis
+    ))
+  fig
+}
+
+
+
 
 plot_ly(s, x = ~x, y = ~y, z = ~z)
 class(s)
