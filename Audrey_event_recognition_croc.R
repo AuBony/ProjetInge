@@ -23,13 +23,21 @@ data <- tibble(filename = files) %>%
                                           escape_double = FALSE,
                                           col_names = c("start", "end", "annotation"),
                                           trim_ws = TRUE)))
+
+
 vec_noms <- c()
+start <- c()
+end <- c()
+annotation <- c()
 for (k in 1:nrow(data)){
-  vec_noms <- c(vec_noms,rep(data[[1]][[k]],nrow(data[[2]][[k]])))
+  vec_noms <- c(vec_noms, rep(data[[1]][[k]], nrow(data[[2]][[k]])))
+  start <- c(start, data[[2]][[k]][[1]])
+  end <- c(end, data[[2]][[k]][[2]])
+  annotation <- c(annotation, data[[2]][[k]][[3]])
 }
 
-data_modif <- data.frame(filename = vec_noms, start = data[[2]][[1]][,1], 
-                     end = data[[2]][[1]][,2], annotation = data[[2]][[1]][,3])
+data_modif <- data.frame(filename = vec_noms, start = start, 
+                         end = end, annotation = annotation)
 
 data_modif_chat_kibble_duration <- data_modif %>% 
   mutate(chat = as.character(map(strsplit(data_modif$filename, "_"), 1)), 
@@ -49,7 +57,7 @@ library(seewave)
 # TRAIN CROC
 #
 
-give_croc <- function(frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0, wav_path = "ProjetInge/cleanwav/" ){
+give_croc <- function(data = df_wav, frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0, wav_path = "ProjetInge/cleanwav/" ){
   require(dplyr)
   require(tuneR)
   require(seewave)
@@ -78,11 +86,11 @@ give_croc <- function(frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0, w
                              ssh = numeric())
   
   #Selection d'un enregistrement
-  for (audio in unique(df_wav[df_wav$annotation == "croc", "filename"])){
+  for (audio in unique(data[data$annotation == "croc", "filename"])){
     
     cat(".")
     
-    crocs <- df_wav %>% filter(filename ==  audio)
+    crocs <- data %>% filter(filename ==  audio)
     
 
       
@@ -156,7 +164,7 @@ croc %>%  mutate(chat = as.character(map(strsplit(filename, "_"), 1)),
 # TRAIN NO EVENT
 #
 
-give_no_event <- function(frame_size = 0.1, ovlp_frame = 0, wav_path = "ProjetInge/cleanwav/"){
+give_no_event <- function(data = df_wav, frame_size = 0.1, ovlp_frame = 0, wav_path = "ProjetInge/cleanwav/"){
   require(dplyr)
   require(tuneR)
   require(seewave)
@@ -185,11 +193,11 @@ give_no_event <- function(frame_size = 0.1, ovlp_frame = 0, wav_path = "ProjetIn
                              ssh =  numeric())
   
   #Selection d'un enregistrement
-  for (audio in unique(df_wav$filename)){
+  for (audio in unique(data$filename)){
     
     cat("_")
     
-    no_event <- df_wav %>% filter(filename ==  audio, annotation == "croc")
+    no_event <- data %>% filter(filename ==  audio, annotation == "croc")
     l_no_event <- 1
     
     if (dim(no_event)[1] == 0){
@@ -261,37 +269,24 @@ no_event<- give_no_event()
 
 
 # DATASET COMPLET CROC ET NO EVENT
-croc <- give_croc()
-no_event <- give_no_event()
-detection  <- rbind.data.frame(croc, no_event)
+df_wav_c <- df_wav %>% filter(annotation == "croc")
+filename_train <- sample(unique(df_wav_c$filename), 0.7 * length(unique(df_wav_c$filename)))
 
-#Data train test
-set.seed(1234)
-train_index_event_croc <- sample(1:nrow(croc), 0.7 * nrow(croc))
-y_train_event_croc <- croc[train_index_event_croc, "event"]
-x_train_event_croc <- croc[train_index_event_croc, 5:20]
+df_train <- df_wav_c %>% filter(filename %in% filename_train)
+df_test <- df_wav_c %>%  filter(!(filename %in% filename_train))
 
-train_index_event_no_event <- sample(1:nrow(no_event), 0.7 * nrow(no_event))
-y_train_event_no_event <- no_event[train_index_event_no_event, "event"]
-x_train_event_no_event <- no_event[train_index_event_no_event, 5:20]
+croc_train <- give_croc(data = df_train)
+no_event_train <- give_no_event(data = df_train)
 
-y_train_event <- as.factor(c(y_train_event_croc, y_train_event_no_event))
-x_train_event <- rbind.data.frame(x_train_event_croc, x_train_event_no_event)
+croc_test <- give_croc(data = df_test)
+no_event_test <- give_no_event(data = df_test)
 
 
-#Test  
-test_index_event_croc <- sample(1:nrow(croc), 0.7 * nrow(croc))
-y_test_event_croc <- croc[-test_index_event_croc, "event"]
-x_test_event_croc <- croc[-test_index_event_croc, 5:20]
+y_train <- as.factor(c(croc_train$event, no_event_train$event))
+x_train <- rbind.data.frame(croc_train[, 5:20], no_event_train[, 5:20])
 
-test_index_event_no_event <- sample(1:nrow(no_event), 0.7 * nrow(no_event))
-y_test_event_no_event <- no_event[-test_index_event_no_event, "event"]
-x_test_event_no_event <- no_event[-test_index_event_no_event, 5:20]
-
-y_test_event <- as.factor(c(y_test_event_croc, y_test_event_no_event))
-x_test_event <- rbind.data.frame(x_test_event_croc, x_test_event_no_event)
-
-
+y_test <- as.factor((c(croc_test$event, no_event_test$event)))
+x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
 
 ############# CROC DETECTION #############
 
@@ -314,52 +309,16 @@ get.specificity <- function(class,pred){
   return((cont.tab[1,1])/(sum(cont.tab[1,])))
 }
 
-choose_ntree <- function(vect = c(1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 75, 100), y_train, x_train, y_test, x_test){
-  require(dplyr)
-  df_ERROR <- data.frame(ntree = numeric(),
-                         Error = numeric (), 
-                         Sens = numeric(),
-                         Spec = numeric())
-  for (tree in vect){
-    ERROR <-0
-    SENS <- 0
-    SPEC <- 0
-    for (i in 1:100){
-      model <- randomForest( y_train~ .,
-                             data = x_train,
-                             ntree = tree,
-                             mtry = 4,
-                             importance = TRUE)
-      pred_test <-  predict(model, newdata = x_test)
-      ERROR <- ERROR + get.error(y_test, pred_test)
-      SENS <- SENS + get.sensitivity(y_test,pred_test)
-      SPEC <- SPEC + get.specificity(y_test,pred_test)
-    }
-    cat("*")
-    df_ERROR <- df_ERROR  %>% add_row(ntree = tree, Error = ERROR/100, Sens = SENS / 100, Spec = SPEC/100)
-  }
-  return(df_ERROR)
-}
-
-plot_dfERROR <- function(df_ERROR){
-  plot(df_ERROR$ntree, df_ERROR$Sens, col = "orange", lwd = 2, type = 'l', ylim = c(0,1), xlab = "ntree", ylab = "")
-  lines(df_ERROR$ntree, df_ERROR$Spec, col = 'green4', lwd = 2)
-  lines(df_ERROR$ntree, df_ERROR$Error, col = 'red', lwd = 2)
-  legend("right",legend = c("ERROR", "Specificity", "Sensitivity"), col = c('red', 'green4', 'orange'), fill =  c('red', 'green4', 'orange'))
-}
-
-
-
   #Model ----
 require(randomForest)
 
 RF <- randomForest::randomForest(
-  y_train_event ~ .,
-  data = x_train_event,
+  y_train ~ .,
+  data = x_train,
   ntree = 40, 
   mtry = 4, 
-  x_test = x_test_event,
-  y_test = y_test_event,
+  x_test = x_test,
+  y_test = y_test,
   importance = TRUE)
 
 RF
@@ -371,14 +330,14 @@ RF$importance
 
 
 require(ROCR)
-pred_RF <- predict(RF, newdata = x_test_event, type = "prob")
-pred_class <-  prediction(pred_RF[,2], y_test_event)
-pred.test <- predict(RF, newdata = x_test_event)
+pred_RF <- predict(RF, newdata = x_test, type = "prob")
+pred_class <-  prediction(pred_RF[,2], y_test)
+pred.test <- predict(RF, newdata = x_test)
 performance_RF <- performance(pred_class,measure = "tpr",x.measure= "fpr")
 plot(performance_RF, col = 4, lwd = 2)
 abline(0,1)
 
-get.error(y_test_event, pred_test)
+get.error(y_test, pred.test)
 
 
 
@@ -386,11 +345,13 @@ get.error(y_test_event, pred_test)
 
 
 #frame size
-df_ERROR <- tibble(size = numeric(),
-                       ovl = numeric(),
-                       Error = numeric (), 
-                       Sens = numeric(),
-                       Spec = numeric())
+df_ERROR <- tibble(
+  size = numeric(),
+  ovl = numeric(),
+  Error = numeric (),
+  Sens = numeric(),
+  Spec = numeric(),
+  Des = numeric())
 
 for (size in seq(from = 0, to = 0.4, by = 0.1 )){
   
@@ -401,8 +362,24 @@ for (size in seq(from = 0, to = 0.4, by = 0.1 )){
     SENS <- 0
     SPEC <- 0
     
-    croc <- give_croc(frame_size = size, ovlp_frame = ovl)
-    no_event<- give_no_event(frame_size = size, ovlp_frame = ovl)
+    filename_train <- sample(unique(df_wav_c$filename), 0.7 * length(unique(df_wav_c$filename)))
+    
+    df_train <- df_wav_c %>% filter(filename %in% filename_train)
+    df_test <- df_wav_c %>%  filter(!(filename %in% filename_train))
+    
+    croc_train <- give_croc(data = df_train)
+    no_event_train <- give_no_event(data = df_train)
+    
+    croc_test <- give_croc(data = df_test)
+    no_event_test <- give_no_event(data = df_test)
+    
+    
+    y_train <- as.factor(c(croc_train$event, no_event_train$event))
+    x_train <- rbind.data.frame(croc_train[, 5:20], no_event_train[, 5:20])
+    
+    y_test <- as.factor((c(croc_test$event, no_event_test$event)))
+    x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
+    
     
     for (i in 1:5){
       print(i)
