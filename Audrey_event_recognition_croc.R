@@ -196,7 +196,7 @@ give_no_event <- function(frame_size = 0.1, ovlp_frame = 0, wav_path = "ProjetIn
   #Selection d'un enregistrement
   for (audio in unique(df_wav$filename)){
     
-    cat(".")
+    cat("_")
     
     no_event <- df_wav %>% filter(filename ==  audio, annotation == "croc")
     l_no_event <- 1
@@ -370,3 +370,106 @@ RF <- randomForest::randomForest(
   importance = TRUE)
 
 RF
+
+varImpPlot(RF)
+RF$confusion
+RF$importance
+
+require(ROCR)
+pred_RF <- predict(RF, newdata = x_test_event, type = "prob")
+pred_class <-  prediction(pred_RF[,2], y_test_event)
+pred.test <- predict(RF, newdata = x_test_event)
+performance_RF <- performance(pred_class,measure = "tpr",x.measure= "fpr")
+plot(performance_RF, col = 4, lwd = 2)
+abline(0,1)
+# TEST DES PARAMETRES D'ECHANTILLONNAGE ----
+
+
+#frame size
+df_ERROR <- tibble(size = numeric(),
+                       ovl = numeric(),
+                       Error = numeric (), 
+                       Sens = numeric(),
+                       Spec = numeric())
+
+for (size in seq(from = 0, to = 0.4, by = 0.1 )){
+  
+  #Overlap
+  for (ovl in seq(from = 0, to = 0.75, by = 0.25)){
+    
+    ERROR <-0
+    SENS <- 0
+    SPEC <- 0
+    
+    croc <- give_croc(frame_size = size, ovlp_frame = ovl)
+    no_event<- give_no_event(frame_size = size, ovlp_frame = ovl)
+    
+    for (i in 1:5){
+      print(i)
+      set.seed(i)
+      
+      #Train
+      train_index_event_croc <- sample(1:nrow(croc), 0.7 * nrow(croc))
+      y_train_event_croc <- croc[train_index_event_croc, "event"]
+      x_train_event_croc <- croc[train_index_event_croc, 5:20]
+      
+      train_index_event_no_event <- sample(1:nrow(no_event), 0.7 * nrow(no_event))
+      y_train_event_no_event <- no_event[train_index_event_no_event, "event"]
+      x_train_event_no_event <- no_event[train_index_event_no_event, 5:20]
+      
+      y_train_event <- as.factor(c(y_train_event_croc, y_train_event_no_event))
+      x_train_event <- rbind.data.frame(x_train_event_croc, x_train_event_no_event)
+      
+      
+      #Test  
+      test_index_event_croc <- sample(1:nrow(croc), 0.7 * nrow(croc))
+      y_test_event_croc <- croc[-test_index_event_croc, "event"]
+      x_test_event_croc <- croc[-test_index_event_croc, 5:20]
+      
+      test_index_event_no_event <- sample(1:nrow(no_event), 0.7 * nrow(no_event))
+      y_test_event_no_event <- no_event[-test_index_event_no_event, "event"]
+      x_test_event_no_event <- no_event[-test_index_event_no_event, 5:20]
+      
+      y_test_event <- as.factor(c(y_test_event_croc, y_test_event_no_event))
+      x_test_event <- rbind.data.frame(x_test_event_croc, x_test_event_no_event)
+      
+      model <- randomForest( y_train_event~ .,
+                             data = x_train_event,
+                             ntree = 40,
+                             mtry = 4,
+                             importance = TRUE)
+      
+      pred_test <-  predict(model, newdata = x_test_event)
+      ERROR <- ERROR + get.error(y_test_event, pred_test)
+      SENS <- SENS + get.sensitivity(y_test_event,pred_test)
+      SPEC <- SPEC + get.specificity(y_test_event,pred_test)
+      
+    }
+    print("*")
+    df_ERROR <- df_ERROR  %>% add_row(size = size,
+                                      ovl = ovl,
+                                      Error = ERROR/5,
+                                      Sens = SENS / 5,
+                                      Spec = SPEC/5)
+    
+  }
+}
+
+df_ERROR <- as.data.frame(df_ERROR)
+df_ERROR
+
+require(plotly)
+plot_ly(df_ERROR, x = ~size, y = ~ovl, z = ~Error)
+
+require(akima)
+require(rgl)
+x <- df_ERROR$size
+y <- df_ERROR$ovl
+z <- df_ERROR$Error
+s=interp(x,y,z,duplicate="strip")
+surface3d(s$x,s$y,s$z,color="blue")
+
+plot_ly(s, x = ~x, y = ~y, z = ~z)
+class(s)
+data.frame(x = s$x, y = s$y)
+s$z
