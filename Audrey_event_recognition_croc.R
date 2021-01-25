@@ -197,75 +197,109 @@ give_no_event <- function(data = df_wav, frame_size = 0.1, ovlp_frame = 0, wav_p
     
     cat("_")
     
-    no_event <- data %>% filter(filename ==  audio, annotation == "croc")
-    l_no_event <- 1
-    
+    no_event <- data %>% filter(filename ==  audio, annotation == "croc") #liste des crocs dans un enregistrement
+  
+    #Il n'y a pas de croc dans l'enregistrement
     if (dim(no_event)[1] == 0){
       deb <- 0
       audio_wav <- readWave(paste0(wav_path, audio), units = "seconds")
-      fin <- duration <- round(length(audio_wav@left) / audio_wav@samp.rate, 2)
-    }else{
-      deb <- 0
-      fin <- no_event$start[1]
-    }
-    
-
-  
-      #Definition d'une zone de sample pour nos frames (on peut définir un interval un peu plus grand)
-      #Decoupage en frame
-      if (fin - deb  > frame_size) {
+      fin <- round(length(audio_wav@left) / audio_wav@samp.rate, 2)
+      
+      for (moment in seq(from =  deb, to = fin - frame_size, by = frame_size * (1-ovlp_frame))){
         
-        for (moment in seq(from =  deb, to = fin - frame_size, by = frame_size * (1-ovlp_frame))){
+        wav_file <- readWave(paste0(wav_path, audio),
+                             from = moment,
+                             to = moment + frame_size,
+                             units = "seconds") 
+        #Features de la frame
+        sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
+        #
+        df_feature_no_event <- df_feature_no_event %>% add_row(
+          filename = audio,
+          start = moment,
+          end = moment + frame_size,
+          event = 0,
           
-          wav_file <- readWave(paste0(wav_path, audio),
-                               from = moment,
-                               to = moment + frame_size,
-                               units = "seconds") 
-          #Features de la frame
-          sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
-          #
-          df_feature_no_event <- df_feature_no_event %>% add_row(
-            filename = audio,
-            start = moment,
-            end = moment + frame_size,
-            event = 0,
-            
-            th = seewave::th(env(wav_file, plot = FALSE)),
-            maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
-            meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
-            
-            smean = sp$mean,
-            ssd = sp$sd,
-            ssem = sp$sem,
-            smedian = sp$median,
-            smode = sp$mode,
-            sQ25 = sp$Q25,
-            sQ75 = sp$Q75,
-            sIQR = sp$IQR,
-            scent = sp$cent,
-            sskewness = sp$skewness,
-            skurtosis = sp$kurtosis,
-            ssfm = sp$sfm,
-            ssh = sp$sh)
-      }
+          th = seewave::th(env(wav_file, plot = FALSE)),
+          maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
+          meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
+          
+          smean = sp$mean,
+          ssd = sp$sd,
+          ssem = sp$sem,
+          smedian = sp$median,
+          smode = sp$mode,
+          sQ25 = sp$Q25,
+          sQ75 = sp$Q75,
+          sIQR = sp$IQR,
+          scent = sp$cent,
+          sskewness = sp$skewness,
+          skurtosis = sp$kurtosis,
+          ssfm = sp$sfm,
+          ssh = sp$sh)
         
-        if (dim(no_event)[1] != 0){
-          deb <- no_event[l_no_event, "end"]
-          fin <- no_event[l_no_event + 1, "start"]
+      }
+    
+      
+    #Il y a bien un croc dans l'enregistrement
+    }else{
+      
+      for (l_no_event in 1: nrow(no_event)){
+        #Deb et fin
+        if (l_no_event == 1){
+          deb <- 0
+          fin <- no_event$start[1]
         }
         
-        l_no_event <- l_no_event + 1
+        if (l_no_event >1){
+          deb <- no_event$end[l_no_event - 1]
+          fin <- no_event$start[l_no_event]
+        }
         
-      
+        if (fin - deb > frame_size){
+          for (moment in seq(from =  deb, to = fin - frame_size, by = frame_size * (1-ovlp_frame))){
+            
+            wav_file <- readWave(paste0(wav_path, audio),
+                                 from = moment,
+                                 to = moment + frame_size,
+                                 units = "seconds") 
+            #Features de la frame
+            sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
+            #
+            df_feature_no_event <- df_feature_no_event %>% add_row(
+              filename = audio,
+              start = moment,
+              end = moment + frame_size,
+              event = 0,
+              
+              th = seewave::th(env(wav_file, plot = FALSE)),
+              maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
+              meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
+              
+              smean = sp$mean,
+              ssd = sp$sd,
+              ssem = sp$sem,
+              smedian = sp$median,
+              smode = sp$mode,
+              sQ25 = sp$Q25,
+              sQ75 = sp$Q75,
+              sIQR = sp$IQR,
+              scent = sp$cent,
+              sskewness = sp$skewness,
+              skurtosis = sp$kurtosis,
+              ssfm = sp$sfm,
+              ssh = sp$sh)
+            
+          }
+        }
+      }
     }
-    
   }
-  
   return(as.data.frame(df_feature_no_event))
 }
 
 #Execution
-no_event<- give_no_event()
+no_event<- give_no_event(data = df_wav_c)
 
 
 # DATASET COMPLET CROC ET NO EVENT
@@ -343,7 +377,16 @@ get.error(y_test, pred.test)
 
 # TEST DES PARAMETRES D'ECHANTILLONNAGE ----
 
+#Package
 require(randomForest)
+require(dplyr)
+
+#Plage des paramètres
+plage_size <- c(0.1, 0.2, 0.1)
+plage_ovl <- c(0, 0.75, 0.25)
+plage_exp <- c(0, 0.2, 0.1)
+
+#Initialisation
 df_wav_c <- df_wav %>% filter(annotation == "croc")
 df_ERROR_p <- tibble(
   expansion = numeric(),
@@ -354,13 +397,20 @@ df_ERROR_p <- tibble(
   Spec = numeric(),
   class_error_0 = numeric(),
   class_error_1 = numeric())
+tour <- 0
+total <- length(seq(from = plage_size[1], to = plage_size[2], by = plage_size[3] )) *
+  length(seq(from = plage_ovl[1], to = plage_ovl[2], by = plage_ovl[3] )) * 
+  length(seq(from = plage_exp[1], to = plage_exp[2], by = plage_exp[3] ))
+
 
 #frame size
-for (size in seq(from = 0.1, to = 0.4, by = 0.1 )){
+for (size in seq(from = plage_size[1], to = plage_size[2], by = plage_size[3] )){
   #Overlap
-  for (ovl in seq(from = 0, to = 0.2, by = 0.1)){
+  for (ovl in seq(from = plage_ovl[1], to = plage_ovl[2], by = plage_ovl[3] )){
     #Expansion
-    for (expansion in seq(from = 0, to = 0.2, by = 0.1)){
+    for (expansion in seq(from = plage_exp[1], to = plage_exp[2], by = plage_exp[3] )){
+      tour <- tour + 1
+      print(paste0(tour, "/", total))
       
       ERROR <-0
       SENS <- 0
@@ -368,14 +418,11 @@ for (size in seq(from = 0.1, to = 0.4, by = 0.1 )){
       CONFU_0 <- 0
       CONFU_1 <- 0
       
-      print("Compute features")
       features_croc <- give_croc(df_wav_c, frame_size = size, ovlp_frame = ovl, percent_expansion = expansion)
       features_no_event <- give_no_event(df_wav_c, frame_size = size, ovlp_frame = ovl)
-      print("")
 
       
       for (i in 1:5){
-        cat("*")
         set.seed(i)
         
         filename_train <- sample(unique(df_wav_c$filename), 0.7 * length(unique(df_wav_c$filename)))
@@ -393,21 +440,19 @@ for (size in seq(from = 0.1, to = 0.4, by = 0.1 )){
         x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
         
         #Model
-        model <- randomForest( y_train_event~ .,
-                               data = x_train_event,
+        model <- randomForest( y_train~ .,
+                               data = x_train,
                                ntree = 40,
                                mtry = 4,
                                importance = TRUE)
         
-        pred_test <-  predict(model, newdata = x_test_event)
-        ERROR <- ERROR + get.error(y_test_event, pred_test)
-        SENS <- SENS + get.sensitivity(y_test_event,pred_test)
-        SPEC <- SPEC + get.specificity(y_test_event,pred_test)
+        pred_test <-  predict(model, newdata = x_test)
+        ERROR <- ERROR + get.error(y_test, pred_test)
+        SENS <- SENS + get.sensitivity(y_test,pred_test)
+        SPEC <- SPEC + get.specificity(y_test,pred_test)
         CONFU_0 <- CONFU_0 + model$confusion[1,3]
         CONFU_1 <- CONFU_1 + model$confusion[2,3]
       }
-      print("")
-      print("Add Records")
       df_ERROR_p <- df_ERROR_p  %>% add_row(
         expansion = expansion,
         size = size,
@@ -425,20 +470,58 @@ for (size in seq(from = 0.1, to = 0.4, by = 0.1 )){
 df_ERROR_copie 
 df_ERROR_p <- as.data.frame(df_ERROR_p)
 df_ERROR_p
+write.table(df_ERROR_p, file = "data/data_perso/df_ERROR_25-01_2.txt")
 
 require(plotly)
 plot_ly(df_ERROR_p, x = ~size, y = ~ovl, z = ~Error)
 
 require(akima)
 require(rgl)
+
+  #Size x Ovl
 x <- df_ERROR_p$size
 y <- df_ERROR_p$ovl
-z <- df_ERROR_p$Error
+z <- df_ERROR_p$class_error_0
 s=interp(x,y,z,duplicate="strip")
-surface3d(s$x,s$y,s$z,color="blue")
 
-plot_ly(x = s$x, y = s$y, z = s$z, type = "contour")
+plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
+  layout(title = "Class Error 0", xaxis = list(title = "Frame Size"), yaxis = list(title = "Overlap"))
 
+x <- df_ERROR_p$size
+y <- df_ERROR_p$ovl
+z <- df_ERROR_p$class_error_1
+s=interp(x,y,z,duplicate="strip")
+
+plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
+  layout(title = "Class Error 1", xaxis = list(title = "Frame Size"), yaxis = list(title = "Overlap"))
+
+  #Size x expansion
+x <- df_ERROR_p$size
+y <- df_ERROR_p$expansion
+z <- df_ERROR_p$class_error_0
+s=interp(x,y,z,duplicate="strip")
+
+plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
+  layout(title = "Class Error 0", xaxis = list(title = "Frame Size"), yaxis = list(title = "Expansion"))
+
+  # Ovl x expansion
+x <- df_ERROR_p$expansion
+y <- df_ERROR_p$ovl
+z <- df_ERROR_p$class_error_0
+s=interp(x,y,z,duplicate="strip")
+
+plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
+  layout(title = "Class Error 0", xaxis = list(title = "Expansion"), yaxis = list(title = "Overlap"))
+
+#
+require(Factoshiny)
+Factoshiny(df_ERROR_p)
+
+res.PCA<-PCA(df_ERROR_p,quanti.sup=c(1,2,3,4,5,6),graph=FALSE)
+
+
+#write.table(df_ERROR_p, file = "data/data_perso/df_ERROR_25-01.txt")
+#
 plot_ly(x = s$x, y = s$y, z = s$z) %>%
   add_surface(
     contours = list(
@@ -451,5 +534,10 @@ plot_ly(x = s$x, y = s$y, z = s$z) %>%
     )
   ) %>% 
   layout(
-    title = "Error"
+    title = "Class_ERROR",
+    scene = list(
+      xaxis = list(title = "Frame Size"),
+      yaxis = list(title = "Overlap"),
+      zaxis = list(title = "Z")
+    )
   )
