@@ -489,9 +489,12 @@ no_event_test <- features_no_event %>% filter(!(filename %in% filename_train))
 
 y_train <- as.factor(c(croc_train$event, no_event_train$event))
 x_train <- rbind.data.frame(croc_train[, 5:20], no_event_train[, 5:20])
+tot_train <- rbind.data.frame(croc_train, no_event_train)
 
 y_test <- as.factor((c(croc_test$event, no_event_test$event)))
 x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
+tot_test <- rbind.data.frame(croc_test, no_event_test)
+
 model_RF <- randomForest::randomForest(
   y_train ~ .,
   data = x_train,
@@ -501,14 +504,27 @@ model_RF <- randomForest::randomForest(
 )
 
 model_RF
-
+saveRDS(model_RF, "./ProjetInge/final_model_26-01.rds")
+readRDS("./ProjetInge/final_model_26-01.rds")
 require(ROCR)
-pred_RF <- predict(RF, newdata = x_test, type = "prob")
+pred_RF <- predict(model_RF, newdata = x_test, type = "prob")
 pred_class <-  prediction(pred_RF[,2], y_test)
-pred.test <- predict(RF, newdata = x_test)
 performance_RF <- performance(pred_class,measure = "tpr",x.measure= "fpr")
 plot(performance_RF, col = 4, lwd = 2)
 abline(0,1)
+
+pred.test <- predict(model_RF, newdata = x_test)
+labs <- cbind(tot_test[,1:4], pred.test)
+plot(0,0, xlim=c(0, 10), ylim=c(0, 10), type = "n")
+for (i in unique(labs$filename)){
+  print(i)
+  lab <- labs[labs$filename == i & labs$event == 1,]
+  plot(0,0, xlim=c(min(lab$start), max(lab$end)), ylim=c(0, 1.2), type = "n", main = i)
+  segments(x0 = lab$start, x1 = lab$end,
+           y0 = as.numeric(as.character(lab$pred.test))+0.01, y1 = as.numeric(as.character(lab$pred.test))+0.01,
+           lwd = 2, col = "red")
+  segments(x0 = lab$start, x1 = lab$end, y0 = lab$event, y1 = lab$event, lwd = 10, col = "green")
+}
 
 # ANALYSE de df_ERROR_p ####
 
