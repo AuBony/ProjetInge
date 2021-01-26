@@ -382,9 +382,9 @@ require(randomForest)
 require(dplyr)
 
 #Plage des paramètres
-plage_size <- c(0.1, 0.2, 0.1)
-plage_ovl <- c(0, 0.75, 0.25)
-plage_exp <- c(0, 0.2, 0.1)
+plage_size <- c(0.1, 0.2, 0.05)
+plage_ovl <- c(0, 0.75, 0.75)
+plage_exp <- c(0, 0.2, 0.2)
 
 #Initialisation
 df_wav_c <- df_wav %>% filter(annotation == "croc")
@@ -409,6 +409,8 @@ for (size in seq(from = plage_size[1], to = plage_size[2], by = plage_size[3] ))
   for (ovl in seq(from = plage_ovl[1], to = plage_ovl[2], by = plage_ovl[3] )){
     #Expansion
     for (expansion in seq(from = plage_exp[1], to = plage_exp[2], by = plage_exp[3] )){
+      require(randomForest)
+      require(dplyr)
       tour <- tour + 1
       print(paste0(tour, "/", total))
       
@@ -470,11 +472,11 @@ for (size in seq(from = plage_size[1], to = plage_size[2], by = plage_size[3] ))
 df_ERROR_copie 
 df_ERROR_p <- as.data.frame(df_ERROR_p)
 df_ERROR_p
-#write.table(df_ERROR_p, file = "data/data_perso/df_ERROR_25-01_2.txt")
+#write.table(df_ERROR_p, file = "data/data_perso/df_ERROR_26_01.txt")
 
 # RANDOM FOREST
-size <- 0.1
-ovl <- 0.7
+size <- 0.15
+ovl <- 0.75
 expansion <- 0.2
 
 features_croc <- give_croc(df_wav_c, frame_size = size, ovlp_frame = ovl, percent_expansion = expansion)
@@ -490,11 +492,27 @@ no_event_test <- features_no_event %>% filter(!(filename %in% filename_train))
 y_train <- as.factor(c(croc_train$event, no_event_train$event))
 x_train <- rbind.data.frame(croc_train[, 5:20], no_event_train[, 5:20])
 tot_train <- rbind.data.frame(croc_train, no_event_train)
+tot_train$event <- as.factor(tot_train$event)
 
 y_test <- as.factor((c(croc_test$event, no_event_test$event)))
 x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
 tot_test <- rbind.data.frame(croc_test, no_event_test)
 
+# Etude préliminaire Ractominer
+require(Factoshiny)
+require(dplyr)
+require(purrr)  # for map(), reduce()
+library(stringr) # for str_replace()
+tot_train %>% mutate(chat = as.character(map(strsplit(tot_train$filename, "_"), 1)), 
+                       kibble = as.character(map(strsplit(tot_train$filename, "_"), 2))) %>% 
+Factoshiny()
+
+dfaux <- data.frame(tot_train,filename_event=paste0(tot_train[,'filename'],tot_train[,'event']))
+res.PCA<-PCA(dfaux,quali.sup=c(1,4,21),quanti.sup=c(2,3),graph=FALSE)
+plot.PCA(res.PCA,choix='var',title="Graphe des variables de l'ACP",col.quanti.sup='#FF0000')
+plotellipses(res.PCA, keepvar=4,invisible=c('quali','ind.sup'),title="Graphe des individus de l'ACP",label ='none', lcol = c(3,4), col = c(3,4))
+
+#Model
 model_RF <- randomForest::randomForest(
   y_train ~ .,
   data = x_train,
@@ -504,7 +522,7 @@ model_RF <- randomForest::randomForest(
 )
 
 model_RF
-saveRDS(model_RF, "./ProjetInge/final_model_26-01.rds")
+saveRDS(model_RF, "./ProjetInge/final_model_26_01_2.rds")
 readRDS("./ProjetInge/final_model_26_01.rds")
 require(ROCR)
 pred_RF <- predict(model_RF, newdata = x_test, type = "prob")
@@ -535,62 +553,90 @@ res.PCA<-PCA(df_ERROR_p,quanti.sup=c(1,2,3,4,5,6),graph=FALSE)
 
 #Plot
 
+  #Class_error_0 et class_error_1
+df_ERROR_p[which.min(df_ERROR_p$class_error_0), ]
+df_ERROR_p[which.min(df_ERROR_p$class_error_1), ]
+require(ggplot2)
+ggplot(df_ERROR_p, aes(x = class_error_1)) +
+  geom_histogram(color="black", fill="white", aes(y=..density..), bins = 30) +
+  geom_density(alpha=.2, fill="darkgreen") +
+  xlim(0,1)+
+  theme_bw()
+
+ggplot(df_ERROR_p, aes(x = class_error_0)) +
+  geom_histogram(color="black", fill="white", aes(y=..density..), bins = 30) +
+  geom_density(alpha=.2, fill="#FF6666") +
+  xlim(0,1)+
+  theme_bw()
+
+
+
+  #Size x Ovl
+
 require(plotly)
 plot_ly(df_ERROR_p, x = ~size, y = ~ovl, z = ~Error)
 
 require(akima)
 require(rgl)
-
-  #Size x Ovl
 require(dplyr)
+require(lazyeval)
 x <- df_ERROR_p$size
 y <- df_ERROR_p$ovl
 z <- df_ERROR_p$class_error_0
-s=interp(x,y,z,duplicate="strip")
 
-plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
+plot_ly(x = x, y = y, z = z, type = "contour") %>% 
   layout(title = "Class Error 0", xaxis = list(title = "Frame Size"), yaxis = list(title = "Overlap"))
 
 x <- df_ERROR_p$size
 y <- df_ERROR_p$ovl
 z <- df_ERROR_p$class_error_1
-s=interp(x,y,z,duplicate="strip")
 
-plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
-  layout(title = "Class Error 1", xaxis = list(title = "Frame Size"), yaxis = list(title = "Overlap"))
+plot_ly(x = x, y = y, z = z, type = "contour",
+        contours = list(
+          start = 0,
+          end = 1,
+          size = 0.05
+        )) %>% 
+  layout(title = "Class Error 1", xaxis = list(title = "Window Length"), yaxis = list(title = "Overlap"))
 
   #Size x expansion
 x <- df_ERROR_p$size
 y <- df_ERROR_p$expansion
 z <- df_ERROR_p$class_error_0
-s=interp(x,y,z,duplicate="strip")
 
-plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
-  layout(title = "Class Error 0", xaxis = list(title = "Frame Size"), yaxis = list(title = "Expansion"))
+plot_ly(x = x, y = y, z = z, type = "contour") %>% 
+  layout(title = "Class Error 0", xaxis = list(title = "Window Length"), yaxis = list(title = "Expansion"))
 
 x <- df_ERROR_p$size
 y <- df_ERROR_p$expansion
 z <- df_ERROR_p$class_error_1
-s=interp(x,y,z,duplicate="strip")
 
-plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
-  layout(title = "Class Error 1", xaxis = list(title = "Frame Size"), yaxis = list(title = "Expansion"))
+plot_ly(x = x, y = y, z = z, type = "contour",
+        contours = list(
+          start = 0,
+          end = 1,
+          size = 0.05
+        )) %>% 
+  layout(title = "Class Error 1", xaxis = list(title = "Window Length"), yaxis = list(title = "Expansion"))
 
   # Ovl x expansion
 x <- df_ERROR_p$expansion
 y <- df_ERROR_p$ovl
 z <- df_ERROR_p$class_error_0
-s=interp(x,y,z,duplicate="strip")
 
-plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
+plot_ly(x = x, y = y, z = z, type = "contour")  %>% 
   layout(title = "Class Error 0", xaxis = list(title = "Expansion"), yaxis = list(title = "Overlap"))
 
 x <- df_ERROR_p$expansion
 y <- df_ERROR_p$ovl
 z <- df_ERROR_p$class_error_1
-s=interp(x,y,z,duplicate="strip")
 
-plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
+plot_ly(x = x, y = y, z = z, type = "contour",
+        contours = list(
+          start = 0,
+          end = 1,
+          size = 0.05
+        )) %>% 
   layout(title = "Class Error 1", xaxis = list(title = "Expansion"), yaxis = list(title = "Overlap"))
 
 #
