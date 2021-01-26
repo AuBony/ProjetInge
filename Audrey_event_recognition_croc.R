@@ -524,6 +524,9 @@ model_RF <- randomForest::randomForest(
 model_RF
 saveRDS(model_RF, "./ProjetInge/final_model_26_01_2.rds")
 readRDS("./ProjetInge/final_model_26_01.rds")
+
+varImpPlot(model_RF)
+
 require(ROCR)
 pred_RF <- predict(model_RF, newdata = x_test, type = "prob")
 pred_class <-  prediction(pred_RF[,2], y_test)
