@@ -470,7 +470,54 @@ for (size in seq(from = plage_size[1], to = plage_size[2], by = plage_size[3] ))
 df_ERROR_copie 
 df_ERROR_p <- as.data.frame(df_ERROR_p)
 df_ERROR_p
-write.table(df_ERROR_p, file = "data/data_perso/df_ERROR_25-01_2.txt")
+#write.table(df_ERROR_p, file = "data/data_perso/df_ERROR_25-01_2.txt")
+
+# RANDOM FOREST
+size <- 0.1
+ovl <- 0.7
+expansion <- 0.2
+
+features_croc <- give_croc(df_wav_c, frame_size = size, ovlp_frame = ovl, percent_expansion = expansion)
+features_no_event <- give_no_event(df_wav_c, frame_size = size, ovlp_frame = ovl)
+
+filename_train <- sample(unique(df_wav_c$filename), 0.7 * length(unique(df_wav_c$filename)))
+croc_train <- features_croc %>% filter(filename %in% filename_train)
+croc_test <- features_croc %>% filter(!(filename %in% filename_train))
+
+no_event_train <- features_no_event %>% filter(filename %in% filename_train)
+no_event_test <- features_no_event %>% filter(!(filename %in% filename_train))
+
+y_train <- as.factor(c(croc_train$event, no_event_train$event))
+x_train <- rbind.data.frame(croc_train[, 5:20], no_event_train[, 5:20])
+
+y_test <- as.factor((c(croc_test$event, no_event_test$event)))
+x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
+model_RF <- randomForest::randomForest(
+  y_train ~ .,
+  data = x_train,
+  ntree = 40,
+  mtry = 4,
+  importance = TRUE
+)
+
+model_RF
+
+require(ROCR)
+pred_RF <- predict(RF, newdata = x_test, type = "prob")
+pred_class <-  prediction(pred_RF[,2], y_test)
+pred.test <- predict(RF, newdata = x_test)
+performance_RF <- performance(pred_class,measure = "tpr",x.measure= "fpr")
+plot(performance_RF, col = 4, lwd = 2)
+abline(0,1)
+
+# ANALYSE de df_ERROR_p ####
+
+#FactomineR
+require(Factoshiny)
+Factoshiny(df_ERROR_p)
+res.PCA<-PCA(df_ERROR_p,quanti.sup=c(1,2,3,4,5,6),graph=FALSE)
+
+#Plot
 
 require(plotly)
 plot_ly(df_ERROR_p, x = ~size, y = ~ovl, z = ~Error)
@@ -479,6 +526,7 @@ require(akima)
 require(rgl)
 
   #Size x Ovl
+require(dplyr)
 x <- df_ERROR_p$size
 y <- df_ERROR_p$ovl
 z <- df_ERROR_p$class_error_0
@@ -504,6 +552,14 @@ s=interp(x,y,z,duplicate="strip")
 plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
   layout(title = "Class Error 0", xaxis = list(title = "Frame Size"), yaxis = list(title = "Expansion"))
 
+x <- df_ERROR_p$size
+y <- df_ERROR_p$expansion
+z <- df_ERROR_p$class_error_1
+s=interp(x,y,z,duplicate="strip")
+
+plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
+  layout(title = "Class Error 1", xaxis = list(title = "Frame Size"), yaxis = list(title = "Expansion"))
+
   # Ovl x expansion
 x <- df_ERROR_p$expansion
 y <- df_ERROR_p$ovl
@@ -512,6 +568,14 @@ s=interp(x,y,z,duplicate="strip")
 
 plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
   layout(title = "Class Error 0", xaxis = list(title = "Expansion"), yaxis = list(title = "Overlap"))
+
+x <- df_ERROR_p$expansion
+y <- df_ERROR_p$ovl
+z <- df_ERROR_p$class_error_1
+s=interp(x,y,z,duplicate="strip")
+
+plot_ly(x = s$x, y = s$y, z = s$z, type = "contour") %>% 
+  layout(title = "Class Error 1", xaxis = list(title = "Expansion"), yaxis = list(title = "Overlap"))
 
 #
 require(Factoshiny)
