@@ -108,6 +108,8 @@ give_croc <- function(data = df_wav, frame_size = 0.1, ovlp_frame = 0, percent_e
                                  from = moment,
                                  to = moment + frame_size,
                                  units = "seconds") 
+            wav_file <- tuneR::normalize(wav_file, center = TRUE)
+            
             #Features de la frame
             sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
             # Ajout des features de la frame
@@ -263,6 +265,7 @@ give_no_event <- function(data = df_wav, frame_size = 0.1, ovlp_frame = 0, wav_p
                                  from = moment,
                                  to = moment + frame_size,
                                  units = "seconds") 
+            wav_file <- tuneR::normalize(wav_file, center = TRUE)
             #Features de la frame
             sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
             #
@@ -375,16 +378,16 @@ get.error(y_test, pred.test)
 
 
 
-# TEST DES PARAMETRES D'ECHANTILLONNAGE ----
+# TEST DES PARAMETRES D'ECHANTILLONNAGE - APPROCHE SIMULATOIRE----
 
 #Package
 require(randomForest)
 require(dplyr)
 
 #Plage des paramètres
-plage_size <- c(0.1, 0.2, 0.05)
-plage_ovl <- c(0, 0.75, 0.75)
-plage_exp <- c(0, 0.2, 0.2)
+plage_size <- c(0.16, 0.17, 0.01)
+plage_ovl <- c(0.6, 0.8, 0.2)
+plage_exp <- c(0.5, 0.7, 0.1)
 
 #Initialisation
 df_wav_c <- df_wav %>% filter(annotation == "croc")
@@ -468,6 +471,7 @@ for (size in seq(from = plage_size[1], to = plage_size[2], by = plage_size[3] ))
     }
   }
 }
+df_ERROR_p <- as.data.frame(df_ERROR_p)
 
 df_ERROR_copie 
 df_ERROR_p <- as.data.frame(df_ERROR_p)
@@ -513,6 +517,7 @@ plot.PCA(res.PCA,choix='var',title="Graphe des variables de l'ACP",col.quanti.su
 plotellipses(res.PCA, keepvar=4,invisible=c('quali','ind.sup'),title="Graphe des individus de l'ACP",label ='none', lcol = c(3,4), col = c(3,4))
 
 #Model
+require(randomForest)
 model_RF <- randomForest::randomForest(
   y_train ~ .,
   data = x_train,
@@ -547,7 +552,7 @@ for (i in unique(labs$filename)){
   segments(x0 = lab$start, x1 = lab$end, y0 = lab$event, y1 = lab$event, lwd = 10, col = "green")
 }
 
-# ANALYSE de df_ERROR_p ####
+# ANALYSE de df_ERROR_p - ANALYSE DES SIMULATIONS####
 
 #FactomineR
 require(Factoshiny)
@@ -670,3 +675,12 @@ plot_ly(x = s$x, y = s$y, z = s$z) %>%
       zaxis = list(title = "Z")
     )
   )
+
+#df_ERROR_p <- read.table(file = "data/data_perso/df_ERROR_26_01.txt")
+write.table(df_ERROR_p, file = "data/data_perso/df_ERROR_27_01_complete.txt")
+head(df_ERROR_p)
+mod <- lm(class_error_1 ~expansion * size* ovl, data = df_ERROR_p)
+summary(mod)
+plot(df_ERROR_p$size,df_ERROR_p$class_error_1, col = as.factor(df_ERROR_p$expansion), pch = 16)
+plot(df_ERROR_p$expansion,df_ERROR_p$class_error_1, col = as.factor(df_ERROR_p$expansion), pch = 16)
+plot(df_ERROR_p$ovl,df_ERROR_p$class_error_1, col = as.factor(df_ERROR_p$expansion), pch = 16)
