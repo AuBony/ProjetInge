@@ -578,13 +578,13 @@ df_ERROR_ovl <- as.data.frame(df_ERROR_ovl)
 #write.table(df_ERROR_ovl, file = "data/data_perso/df_ERROR_ovl_27_01.txt")
 
 # RANDOM FOREST
-size <- 0.15
-ovl_croc <- 0.8
-ovl_no_event <- 
-expansion <- 0.6
+size <- 0.2
+ovl_croc <- 0.4
+ovl_no_event <- 0
+expansion <- 0
 
-features_croc <- give_croc(df_wav_c, frame_size = size, ovlp_frame = ovl, percent_expansion = expansion)
-features_no_event <- give_no_event(df_wav_c, frame_size = size, ovlp_frame = ovl)
+features_croc <- give_croc(df_wav_c, frame_size = size, ovlp_frame = ovl_croc, percent_expansion = expansion)
+features_no_event <- give_no_event(df_wav_c, frame_size = size, ovlp_frame = ovl_no_event)
 
 filename_train <- sample(unique(df_wav_c$filename), 0.7 * length(unique(df_wav_c$filename)))
 croc_train <- features_croc %>% filter(filename %in% filename_train)
@@ -602,19 +602,6 @@ y_test <- as.factor((c(croc_test$event, no_event_test$event)))
 x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
 tot_test <- rbind.data.frame(croc_test, no_event_test)
 
-# Etude préliminaire Ractominer
-require(Factoshiny)
-require(dplyr)
-require(purrr)  # for map(), reduce()
-library(stringr) # for str_replace()
-tot_train %>% mutate(chat = as.character(map(strsplit(tot_train$filename, "_"), 1)), 
-                       kibble = as.character(map(strsplit(tot_train$filename, "_"), 2))) %>% 
-Factoshiny()
-
-dfaux <- data.frame(tot_train,filename_event=paste0(tot_train[,'filename'],tot_train[,'event']))
-res.PCA<-PCA(dfaux,quali.sup=c(1,4,21),quanti.sup=c(2,3),graph=FALSE)
-plot.PCA(res.PCA,choix='var',title="Graphe des variables de l'ACP",col.quanti.sup='#FF0000')
-plotellipses(res.PCA, keepvar=4,invisible=c('quali','ind.sup'),title="Graphe des individus de l'ACP",label ='none', lcol = c(3,4), col = c(3,4))
 
 #Model
 require(randomForest)
@@ -627,8 +614,8 @@ model_RF <- randomForest::randomForest(
 )
 
 model_RF
-saveRDS(model_RF, "./ProjetInge/final_model_26_01_2.rds")
-readRDS("./ProjetInge/final_model_26_01.rds")
+saveRDS(model_RF, "./ProjetInge/final_model_27_01_erroreventminim.rds")
+
 
 varImpPlot(model_RF)
 
