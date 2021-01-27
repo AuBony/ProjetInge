@@ -217,20 +217,9 @@ mse <- function(pred, act){
 # features calculation on complete samples (per frames)
 fich <- list.files(paste0(path,'cleanwav'))
 dta <- lapply(fich, FUN = frame_cut, path = paste0(path,'cleanwav/'), 
-              window_length = 0.1, overlap = 0.7)
+              window_length = 0.1, overlap = 0.4)
 data <- ldply(dta, rbind)
 df_feature <- calc_features(data)
-
-# probabilies calculation of belonging to event or no-event class with RF model
-model <- readRDS("~/GitHub/ProjetInge/final_model_26_01_2.rds")
-pred <- predict(model, newdata = df_feature, type = 'prob') # 17227 | 2
-pred_frame <- data.frame(filename = df_feature$filename,
-                         start = df_feature$start,
-                         end = df_feature$end,
-                         no_event = pred[,1],
-                         event = pred[,2])
-
-pred_pts <- lapply(fich, FUN = frame_pts, step = 50) 
 
 # counting events on total samples
 actual <- read.table(paste0(path, 'nb_bk.csv'), sep = ';', dec = '.', header = TRUE)
@@ -239,18 +228,28 @@ summary(actual)
 wavlist <- lapply(fich, FUN = imp_norm, path = path)
 diff_lim <- 18500
 
-#---- start with loaded environment ----
-load(paste0(path, 'base_env_modelcompilation.RData'))
+# probabilies calculation of belonging to event or no-event class with RF model
+model <- readRDS("~/GitHub/ProjetInge/final_model_27_01_errorglobminim.rds")
+pred <- predict(model, newdata = df_feature, type = 'prob') # 17227 | 2
+pred_frame <- data.frame(filename = df_feature$filename,
+                         start = df_feature$start,
+                         end = df_feature$end,
+                         no_event = pred[,1],
+                         event = pred[,2])
+
+pred_pts <- lapply(fich, FUN = frame_pts, step = 20) 
 
 # visualization
-i <- 2
+i <- 1
+spectro(wavlist[[i]], dB = NULL, fastdisp = TRUE)
 plot(wavlist[[i]],
      main = fich[i])
 plot(pred_pts[[i]]$time, pred_pts[[i]]$prob_1, type = 'l',
      xlab = 'time', ylab = 'probabily of being an event',
-     main = fich[i])
+     main = fich[i], ylim = c(0,1))
+dev.off()
 
-# counting events with 0.4 proba lim
+#---- counting events with 0.4 proba lim ----
 count <- c()
 for (k in 1:length(wavlist)){
   print(k)
@@ -261,7 +260,7 @@ count
 mse(count, actual$nb_bk)
 
 df <- data.frame(actual = actual$nb_bk, prediction = count)
-df <- df %>% add_count(prediction)
+df <- df %>% add_count(actual, prediction)
 
 title <- paste0('Number of breaks, predicted vs actual \n for amp_lim = ', amp_lim,
                  ', diff_lim = ', diff_lim, ' and prob_lim = ', prob_lim)
@@ -303,7 +302,7 @@ ggplotly(p2)
 
 #---- combining manual and machine learning methods ----
 
-# ADDING BOTH SELECTIONS
+#---- ADDING BOTH SELECTIONS ----
 prob_lim <- 0.4
 amp_lim <- 0.4
 count3 <- c()
@@ -317,7 +316,7 @@ count3
 mse(count3, actual$nb_bk)
 
 df3 <- data.frame(actual = actual$nb_bk, prediction = count3)
-df3 <- df3 %>% add_count(prediction)
+df3 <- df3 %>% add_count(actual, prediction)
 
 title3 <- paste0('Number of breaks, predicted vs actual \n for amp_lim = ', amp_lim,
                  ', diff_lim = ', diff_lim, ' and prob_lim = ', prob_lim)
@@ -330,7 +329,7 @@ ggplot(df3, aes(x = actual, y = prediction)) +
   labs(title = title3) +
   theme_light()
 
-# FINDING AN OPTIMAL COUPLE (AMP_LIM, PROB_LIM)
+#---- FINDING AN OPTIMAL COUPLE (AMP_LIM, PROB_LIM) ----
 param <- expand.grid(amp_lim = seq(0.1,1,by=0.1), prob_lim = seq(0.1,1,by = 0.1))
 param$mse <- rep(0, nrow(param))
 for (i in 1:nrow(param)){
@@ -352,12 +351,15 @@ p <- ggplot(param, aes(x = amp_lim, y = prob_lim, fill = log(mse))) +
   scale_x_continuous(breaks = seq(0.1, 1, by = 0.1)) +
   scale_y_continuous(breaks = seq(0.1, 1, by = 0.1)) +
   theme_minimal()
-ggplotly(p)  # opt: amp_lim=0.4, prob_lim=0.8
+ggplotly(p)
+min(param$mse)
+amp_opt <- param$amp_lim[which.min(param$mse)]
+prob_opt <- param$prob_lim[which.min(param$mse)]
 
 
 # with optimal parameters
-prob_lim <- 0.8
-amp_lim <- 0.4
+prob_lim <- prob_opt
+amp_lim <- amp_opt
 count4 <- c()
 for (k in 1:length(wavlist)){
   print(k)
@@ -367,9 +369,10 @@ for (k in 1:length(wavlist)){
 }
 count4
 mse(count4, actual$nb_bk)
+length(which(count4 == actual$nb_bk))
 
 df4 <- data.frame(actual = actual$nb_bk, prediction = count4)
-df4 <- df4 %>% add_count(prediction)
+df4 <- df4 %>% add_count(actual, prediction)
 
 title4 <- paste0('Number of breaks, predicted vs actual \n for amp_lim = ', amp_lim,
                  ', diff_lim = ', diff_lim, ' and prob_lim = ', prob_lim)
