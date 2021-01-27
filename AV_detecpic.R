@@ -54,8 +54,8 @@ df_wavc
 
 addmargins(table(df_wavc$chat,df_wavc$kibble))
 
-eff <- df_wavc %>% group_by(filename) %>% summarise(nb_bk = n())
-nb_bk_tot <- sum(eff$nb_bk)
+eff <- read.table(paste0(path, 'nb_bk.csv'), sep = ';', dec = '.', header = TRUE)
+eff$filename <- as.factor(eff$filename)
 
 #---- FUNCTIONS ----
 
@@ -113,7 +113,7 @@ mse(count, eff$nb_bk)
 #---- PREDICTION vs COUNTING ----
 
 df1 <- data.frame(actual = eff$nb_bk, prediction = count)
-df1 <- df1 %>% add_count(prediction)
+df1 <- df1 %>% add_count(actual, prediction)
 
 title1 <- paste0('Number of breaks, predicted vs actual \n for amp_lim = ', amp_lim,
                 ' and diff_lim = ', diff_lim)
@@ -264,7 +264,7 @@ count
 mse(count, eff$nb_bk)
 
 df5 <- data.frame(actual = eff$nb_bk, prediction = count)
-df5 <- df5 %>% add_count(prediction)
+df5 <- df5 %>% add_count(actual, prediction)
 
 title5 <- paste0('Number of breaks, predicted vs actual \n for amp_lim = ', amp_lim,
                  ' and diff_lim = ', diff_lim)
