@@ -171,6 +171,8 @@ chat_notchi1 <- a
 chat_notchi1@left <- as.integer(son2[193,])
 play(chat_notchi1)
 
+
+
 # Cours R
 library(tuneR)
 notchi1 <- readWave("data/Notchi 1.wav")

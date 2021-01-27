@@ -478,10 +478,110 @@ df_ERROR_p <- as.data.frame(df_ERROR_p)
 df_ERROR_p
 #write.table(df_ERROR_p, file = "data/data_perso/df_ERROR_26_01.txt")
 
+# TEST DES PARAMETRES D'ECHANTILLONNAGE - APPROCHE SIMULATOIRE TEST SI OVLP DIFFERENT ENTRE CROC ET NO EVENT----
+
+#Plage des paramètres
+plage_size <- c(0.2, 0.2, 0)
+plage_ovl_croc <- c(0.4, 0.7, 0.1)
+plage_ovl_no_event <- c(0, 0.3, 0.3)
+plage_exp <- c(0, 0.6, 0.6)
+
+#Initialisation
+df_wav_c <- df_wav %>% filter(annotation == "croc")
+df_ERROR_ovl <- tibble(
+  expansion = numeric(),
+  size = numeric(),
+  ovl_croc = numeric(),
+  ovl_no_event = numeric(),
+  Error = numeric (),
+  Sens = numeric(),
+  Spec = numeric(),
+  class_error_0 = numeric(),
+  class_error_1 = numeric())
+tour <- 0
+total <- length(seq(from = plage_size[1], to = plage_size[2], by = plage_size[3] )) *
+  length(seq(from = plage_ovl_croc[1], to = plage_ovl_croc[2], by = plage_ovl_croc[3] )) * 
+  length(seq(from = plage_ovl_no_event[1], to = plage_ovl_no_event[2], by = plage_ovl_no_event[3] )) * 
+  length(seq(from = plage_exp[1], to = plage_exp[2], by = plage_exp[3] ))
+total
+
+#frame size
+for (size in seq(from = plage_size[1], to = plage_size[2], by = plage_size[3] )){
+  #Overlap
+  for (expansion in seq(from = plage_exp[1], to = plage_exp[2], by = plage_exp[3] )){
+    #Expansion
+    for (ovl_croc in seq(from = plage_ovl_croc[1], to = plage_ovl_croc[2], by = plage_ovl_croc[3] )){
+      for (ovl_no_event in seq(from = plage_ovl_no_event[1], to = plage_ovl_no_event[2], by = plage_ovl_no_event[3] )){
+        
+        require(randomForest)
+        require(dplyr)
+        tour <- tour + 1
+        print(paste0(tour, "/", total))
+        
+        ERROR <-0
+        SENS <- 0
+        SPEC <- 0
+        CONFU_0 <- 0
+        CONFU_1 <- 0
+        
+        features_croc <- give_croc(df_wav_c, frame_size = size, ovlp_frame = ovl_croc, percent_expansion = expansion)
+        features_no_event <- give_no_event(df_wav_c, frame_size = size, ovlp_frame = ovl_no_event)
+        
+        
+        for (i in 1:5){
+          set.seed(i)
+          
+          filename_train <- sample(unique(df_wav_c$filename), 0.7 * length(unique(df_wav_c$filename)))
+          
+          croc_train <- features_croc %>% filter(filename %in% filename_train)
+          croc_test <- features_croc %>% filter(!(filename %in% filename_train))
+          
+          no_event_train <- features_no_event %>% filter(filename %in% filename_train)
+          no_event_test <- features_no_event %>% filter(!(filename %in% filename_train))
+          
+          y_train <- as.factor(c(croc_train$event, no_event_train$event))
+          x_train <- rbind.data.frame(croc_train[, 5:20], no_event_train[, 5:20])
+          
+          y_test <- as.factor((c(croc_test$event, no_event_test$event)))
+          x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
+          
+          #Model
+          model <- randomForest( y_train~ .,
+                                 data = x_train,
+                                 ntree = 40,
+                                 mtry = 4,
+                                 importance = TRUE)
+          
+          pred_test <-  predict(model, newdata = x_test)
+          ERROR <- ERROR + get.error(y_test, pred_test)
+          SENS <- SENS + get.sensitivity(y_test,pred_test)
+          SPEC <- SPEC + get.specificity(y_test,pred_test)
+          CONFU_0 <- CONFU_0 + model$confusion[1,3]
+          CONFU_1 <- CONFU_1 + model$confusion[2,3]
+        }
+        df_ERROR_ovl <- df_ERROR_ovl  %>% add_row(
+          expansion = expansion,
+          size = size,
+          ovl_croc = ovl_croc,
+          ovl_no_event = ovl_no_event,
+          Error = ERROR/5,
+          Sens = SENS / 5,
+          Spec = SPEC/5, 
+          class_error_0 = CONFU_0/5,
+          class_error_1 = CONFU_1/5)
+
+      }
+    }
+  }
+}
+df_ERROR_ovl <- as.data.frame(df_ERROR_ovl)
+#write.table(df_ERROR_ovl, file = "data/data_perso/df_ERROR_ovl_27_01.txt")
+
 # RANDOM FOREST
 size <- 0.15
-ovl <- 0.75
-expansion <- 0.2
+ovl_croc <- 0.8
+ovl_no_event <- 
+expansion <- 0.6
 
 features_croc <- give_croc(df_wav_c, frame_size = size, ovlp_frame = ovl, percent_expansion = expansion)
 features_no_event <- give_no_event(df_wav_c, frame_size = size, ovlp_frame = ovl)
