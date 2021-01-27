@@ -154,19 +154,18 @@ imp_norm <- function(file_name, path){
   return(normalize(readWave(paste0(path,'cleanwav/',file_name)), center = TRUE))
 }
 
-count_peaks2 <- function(wav, amp_lim, diff_lim, step, pred_rf){
+count_peaks2 <- function(wav, diff_lim, prob_lim, pred_rf){
   # INPUTS:
   # wav: Wave, an element of wavlist (a recording as wave)
-  # amp_lim : numeric, amplitude limit of detection
   # diff_lim : numeric, minimal distance between 2 peaks
-  # step : numeric, step of sampling for RF results
+  # prob_lim : numeric, minimal probability to define an event
   # pred_rf : dataframe, pts | time | prob_0 | prob_1 predicted by random forest
   #           for the corresponding wav
   # OUTPUT:
   # c : numeric, count of peaks in the wav
   c <- 1
-  vec <- wav@left[pred_rf$pts+1]
-  vecsel <- which((abs(vec) > amp_lim) & pred_rf$prob_1 > 0.5)
+  vec <- wav@left
+  vecsel <- pred_rf$pts[which(pred_rf$prob_1 > prob_lim)]
   if (length(vecsel) == 0){
     c <- 0
   } else if (length(vecsel) > 1) {
@@ -178,12 +177,12 @@ count_peaks2 <- function(wav, amp_lim, diff_lim, step, pred_rf){
   return(c)
 }
 
-count_peaks3 <- function(wav, amp_lim, diff_lim, step, pred_rf){
+count_peaks3 <- function(wav, amp_lim, diff_lim, prob_lim, pred_rf){
   # INPUTS:
   # wav: Wave, an element of wavlist (a recording as wave)
   # amp_lim : numeric, amplitude limit of detection
   # diff_lim : numeric, minimal distance between 2 peaks
-  # step : numeric, step of sampling for RF results
+  # prob_lim : numeric, minimal probability to define an event
   # pred_rf : dataframe, pts | time | prob_0 | prob_1 predicted by random forest
   #           for the corresponding wav
   # OUTPUT:
@@ -191,10 +190,8 @@ count_peaks3 <- function(wav, amp_lim, diff_lim, step, pred_rf){
   c <- 1
   vec <- wav@left
   vecselamp <- which(abs(vec) > amp_lim)
-  vecselprob <- pred_rf$pts[which(pred_rf$prob_1 > 0.5)]
-  print(vecselamp)
-  print(vecselprob)
-  vecsel <- intersect(vecselamp, vecselprob)
+  vecselprob <- pred_rf$pts[which(pred_rf$prob_1 > prob_lim)]
+  vecsel <- union(vecselamp, vecselprob)
   if (length(vecsel) == 0){
     c <- 0
   } else if (length(vecsel) > 1) {
@@ -204,6 +201,15 @@ count_peaks3 <- function(wav, amp_lim, diff_lim, step, pred_rf){
       }
     }}
   return(c)
+}
+
+mse <- function(pred, act){
+  # INPUTS
+  # pred : vector of predictions
+  # act : vector of actual values
+  # OUPUT
+  # MSE
+  return(sum((pred - act)^2) / length(pred))
 }
 
 #---- DETECTION ON COMPLETE SIGNAL ----
@@ -224,27 +230,156 @@ pred_frame <- data.frame(filename = df_feature$filename,
                          no_event = pred[,1],
                          event = pred[,2])
 
-pred_pts <- lapply(fich, FUN = frame_pts, step = 10) 
-
-plot(pred_pts[[2]]$time, pred_pts[[2]]$prob_1, type = 'l')
-plot(wavlist[[2]])
+pred_pts <- lapply(fich, FUN = frame_pts, step = 50) 
 
 # counting events on total samples
+actual <- read.table(paste0(path, 'nb_bk.csv'), sep = ';', dec = '.', header = TRUE)
+actual$filename <- as.factor(actual$filename)
+summary(actual)
 wavlist <- lapply(fich, FUN = imp_norm, path = path)
-amp_lim = 0.4
-diff_lim = 18500
+diff_lim <- 18500
 
+#---- start with loaded environment ----
+load(paste0(path, 'base_env_modelcompilation.RData'))
+
+# visualization
+i <- 2
+plot(wavlist[[i]],
+     main = fich[i])
+plot(pred_pts[[i]]$time, pred_pts[[i]]$prob_1, type = 'l',
+     xlab = 'time', ylab = 'probabily of being an event',
+     main = fich[i])
+
+# counting events with 0.4 proba lim
 count <- c()
 for (k in 1:length(wavlist)){
   print(k)
-  count <- c(count, count_peaks3(wav = wavlist[[k]], step = 50, 
-                                 amp_lim = amp_lim, diff_lim = diff_lim,
-                                 pred_rf = pred_pts[[k]]))
+  count <- c(count, count_peaks2(wav = wavlist[[k]], diff_lim = diff_lim, 
+                                 prob_lim = 0.4, pred_rf = pred_pts[[k]]))
 }
 count
-mse(count, eff$nb_bk)
+mse(count, actual$nb_bk)
 
-count_peaks3(wav = wavlist[[2]], step = 50, 
-             amp_lim = amp_lim, diff_lim = diff_lim,
-             pred_rf = pred_pts[[2]])
-#### les pics d'amplitudes sont pas dans les pas des probas calculées
+df <- data.frame(actual = actual$nb_bk, prediction = count)
+df <- df %>% add_count(prediction)
+
+title <- paste0('Number of breaks, predicted vs actual \n for amp_lim = ', amp_lim,
+                 ', diff_lim = ', diff_lim, ' and prob_lim = ', prob_lim)
+ggplot(df, aes(x = actual, y = prediction)) +
+  geom_segment(aes(x = 0, y = 0, xend = 6, yend = 6)) +
+  geom_point(aes(col = n), size = 3) +
+  ylim(0,6) +
+  xlim(0,6) +
+  theme(plot.title = element_text()) +
+  labs(title = title) +
+  theme_light()
+
+#---- finding best probability limit ----
+mse2 <- rep(0, 19)
+absc <- seq(0.1, 1, by = 0.05)
+for (j in 1:19){
+  count2 <- c()
+  p <- absc[j]
+  for (k in 1:length(wavlist)){
+    print(k)
+    count2 <- c(count2, count_peaks2(wav = wavlist[[k]], diff_lim = diff_lim, 
+                                   prob_lim = p, pred_rf = pred_pts[[k]]))
+  }
+  mse2[j] <- mse(count2, actual$nb_bk)
+  print(j)
+}
+
+title2 <- paste0('MSE with different probability limits, \n with diff_lim = ', 
+                 diff_lim)
+df2 <- data.frame(prob_lim = seq(0.1, 1, by = 0.05), mse = mse2) 
+p2 <- ggplot(df2, aes(x = prob_lim, y = mse)) +
+  geom_line() +
+  theme_light() +
+  theme(plot.title = element_text()) +
+  labs(title = title2) +
+  scale_x_continuous(breaks = seq(0, 1, by = 0.1))
+ggplotly(p2)
+# opt prob_lim = 0.4
+
+#---- combining manual and machine learning methods ----
+
+# ADDING BOTH SELECTIONS
+prob_lim <- 0.4
+amp_lim <- 0.4
+count3 <- c()
+for (k in 1:length(wavlist)){
+  print(k)
+  count3 <- c(count3, count_peaks3(wav = wavlist[[k]], diff_lim = diff_lim, 
+                                 amp_lim = amp_lim, prob_lim = prob_lim,
+                                 pred_rf = pred_pts[[k]]))
+}
+count3
+mse(count3, actual$nb_bk)
+
+df3 <- data.frame(actual = actual$nb_bk, prediction = count3)
+df3 <- df3 %>% add_count(prediction)
+
+title3 <- paste0('Number of breaks, predicted vs actual \n for amp_lim = ', amp_lim,
+                 ', diff_lim = ', diff_lim, ' and prob_lim = ', prob_lim)
+ggplot(df3, aes(x = actual, y = prediction)) +
+  geom_segment(aes(x = 0, y = 0, xend = 6, yend = 6)) +
+  geom_point(aes(col = n), size = 3) +
+  ylim(0,6) +
+  xlim(0,6) +
+  theme(plot.title = element_text()) +
+  labs(title = title3) +
+  theme_light()
+
+# FINDING AN OPTIMAL COUPLE (AMP_LIM, PROB_LIM)
+param <- expand.grid(amp_lim = seq(0.1,1,by=0.1), prob_lim = seq(0.1,1,by = 0.1))
+param$mse <- rep(0, nrow(param))
+for (i in 1:nrow(param)){
+  count <- c()
+  print(paste('amp: ',param$amp_lim[i], 'prob: ', param$prob_lim[i]))
+  for (k in 1:length(wavlist)){
+    count <- c(count, count_peaks3(wav = wavlist[[k]], 
+                                   diff_lim = diff_lim, 
+                                   amp_lim = param$amp_lim[i],
+                                   prob_lim = param$prob_lim[i],
+                                   pred_rf = pred_pts[[k]]))
+  }
+  print(count)
+  param$mse[i] <- mse(count, actual$nb_bk)
+}
+p <- ggplot(param, aes(x = amp_lim, y = prob_lim, fill = log(mse))) +
+  geom_tile() +
+  scale_fill_gradient(low = 'springgreen3', high = 'blue') +
+  scale_x_continuous(breaks = seq(0.1, 1, by = 0.1)) +
+  scale_y_continuous(breaks = seq(0.1, 1, by = 0.1)) +
+  theme_minimal()
+ggplotly(p)  # opt: amp_lim=0.4, prob_lim=0.8
+
+
+# with optimal parameters
+prob_lim <- 0.8
+amp_lim <- 0.4
+count4 <- c()
+for (k in 1:length(wavlist)){
+  print(k)
+  count4 <- c(count4, count_peaks3(wav = wavlist[[k]], diff_lim = diff_lim, 
+                                   amp_lim = amp_lim, prob_lim = prob_lim,
+                                   pred_rf = pred_pts[[k]]))
+}
+count4
+mse(count4, actual$nb_bk)
+
+df4 <- data.frame(actual = actual$nb_bk, prediction = count4)
+df4 <- df4 %>% add_count(prediction)
+
+title4 <- paste0('Number of breaks, predicted vs actual \n for amp_lim = ', amp_lim,
+                 ', diff_lim = ', diff_lim, ' and prob_lim = ', prob_lim)
+ggplot(df4, aes(x = actual, y = prediction)) +
+  geom_segment(aes(x = 0, y = 0, xend = 6, yend = 6)) +
+  geom_point(aes(col = n), size = 3) +
+  ylim(0,6) +
+  xlim(0,6) +
+  theme(plot.title = element_text()) +
+  labs(title = title4) +
+  theme_light()
+
+  
