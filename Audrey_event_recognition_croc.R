@@ -588,11 +588,248 @@ for (chat in unique(df_wav_c$chat)){
 
 # TEST DES PARAMETRES D'ECHANTILLONNAGE - APPROCHE SIMULATOIRE TEST SI OVLP DIFFERENT ENTRE CROC ET NO EVENT----
 
+#Function
+give_croc <- function(data = df_wav, frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0, wav_path = "ProjetInge/cleanwav/" ){
+  require(dplyr)
+  require(tuneR)
+  require(seewave)
+  
+  df_feature_event <- tibble(filename = character(),
+                             start = numeric(),
+                             end = numeric(),
+                             event = numeric(),
+                             
+                             th = numeric(),
+                             maxdfreq = numeric(),
+                             meandfreq = numeric(),
+                             
+                             smean = numeric(),
+                             ssd = numeric(),
+                             ssem = numeric(),
+                             smedian = numeric(),
+                             smode = numeric(),
+                             sQ25 = numeric(),
+                             sQ75 = numeric(),
+                             sIQR = numeric(),
+                             scent = numeric(),
+                             sskewness = numeric(),
+                             skurtosis = numeric(),
+                             ssfm = numeric(),
+                             ssh = numeric())
+  
+  #Selection d'un enregistrement
+  for (audio in unique(data[data$annotation == "croc", "filename"])){
+    
+    cat(".")
+    
+    crocs <- data %>% filter(filename ==  audio)
+    
+    
+    #Selection d'un événement croc 
+    for(l_croc in 1:nrow(crocs)){
+      
+      
+      #Definition d'une zone de sample pour nos frames (on peut définir un interval un peu plus grand)
+      #Decoupage en frame
+      if (crocs[l_croc,"end"] + (frame_size*percent_expansion) - frame_size - crocs[l_croc,"start"] + (frame_size*percent_expansion) > frame_size ){
+        
+        for (moment in seq(from =  crocs[l_croc,"start"] - (frame_size*percent_expansion), to = crocs[l_croc,"end"] + (frame_size*percent_expansion) - frame_size, by = frame_size * (1-ovlp_frame))){
+          
+          wav_file <- readWave(paste0(wav_path, audio),
+                               from = moment,
+                               to = moment + frame_size,
+                               units = "seconds") 
+          wav_file <- tuneR::normalize(wav_file, center = TRUE)
+          
+          #Features de la frame
+          sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
+          # Ajout des features de la frame
+          df_feature_event <- df_feature_event %>% add_row(
+            filename = audio,
+            start = moment,
+            end = moment + frame_size,
+            event = 1,
+            
+            th = seewave::th(env(wav_file, plot = FALSE)),
+            maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
+            meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
+            
+            smean = sp$mean,
+            ssd = sp$sd,
+            ssem = sp$sem,
+            smedian = sp$median,
+            smode = sp$mode,
+            sQ25 = sp$Q25,
+            sQ75 = sp$Q75,
+            sIQR = sp$IQR,
+            scent = sp$cent,
+            sskewness = sp$skewness,
+            skurtosis = sp$kurtosis,
+            ssfm = sp$sfm,
+            ssh = sp$sh)
+        }
+        
+      }
+      
+      
+    }
+    
+  }
+  
+  return(as.data.frame(df_feature_event))
+}
+give_no_event <- function(data = df_wav, frame_size = 0.1, ovlp_frame = 0, wav_path = "ProjetInge/cleanwav/"){
+  require(dplyr)
+  require(tuneR)
+  require(seewave)
+  
+  df_feature_no_event <- tibble(filename = character(),
+                                start = numeric(),
+                                end = numeric(),
+                                event = numeric(),
+                                
+                                th = numeric(),
+                                maxdfreq =  numeric(),
+                                meandfreq =  numeric(),
+                                
+                                smean =  numeric(),
+                                ssd =  numeric(),
+                                ssem =  numeric(),
+                                smedian =  numeric(),
+                                smode =  numeric(),
+                                sQ25 =  numeric(),
+                                sQ75 =  numeric(),
+                                sIQR =  numeric(),
+                                scent =  numeric(),
+                                sskewness =  numeric(),
+                                skurtosis =  numeric(),
+                                ssfm =  numeric(),
+                                ssh =  numeric())
+  
+  #Selection d'un enregistrement
+  for (audio in unique(data$filename)){
+    
+    cat("_")
+    
+    no_event <- data %>% filter(filename ==  audio, annotation == "croc") #liste des crocs dans un enregistrement
+    
+    #Il n'y a pas de croc dans l'enregistrement
+    if (dim(no_event)[1] == 0){
+      deb <- 0
+      audio_wav <- readWave(paste0(wav_path, audio), units = "seconds")
+      fin <- round(length(audio_wav@left) / audio_wav@samp.rate, 2)
+      
+      for (moment in seq(from =  deb, to = fin - frame_size, by = frame_size * (1-ovlp_frame))){
+        
+        wav_file <- readWave(paste0(wav_path, audio),
+                             from = moment,
+                             to = moment + frame_size,
+                             units = "seconds") 
+        #Features de la frame
+        sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
+        #
+        df_feature_no_event <- df_feature_no_event %>% add_row(
+          filename = audio,
+          start = moment,
+          end = moment + frame_size,
+          event = 0,
+          
+          th = seewave::th(env(wav_file, plot = FALSE)),
+          maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
+          meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
+          
+          smean = sp$mean,
+          ssd = sp$sd,
+          ssem = sp$sem,
+          smedian = sp$median,
+          smode = sp$mode,
+          sQ25 = sp$Q25,
+          sQ75 = sp$Q75,
+          sIQR = sp$IQR,
+          scent = sp$cent,
+          sskewness = sp$skewness,
+          skurtosis = sp$kurtosis,
+          ssfm = sp$sfm,
+          ssh = sp$sh)
+        
+      }
+      
+      
+      #Il y a bien un croc dans l'enregistrement
+    }else{
+      
+      for (l_no_event in 1: nrow(no_event)){
+        #Deb et fin
+        if (l_no_event == 1){
+          deb <- 0
+          fin <- no_event$start[1]
+        }
+        
+        if (l_no_event >1){
+          deb <- no_event$end[l_no_event - 1]
+          fin <- no_event$start[l_no_event]
+        }
+        
+        if (fin - deb > frame_size){
+          for (moment in seq(from =  deb, to = fin - frame_size, by = frame_size * (1-ovlp_frame))){
+            
+            wav_file <- readWave(paste0(wav_path, audio),
+                                 from = moment,
+                                 to = moment + frame_size,
+                                 units = "seconds") 
+            wav_file <- tuneR::normalize(wav_file, center = TRUE)
+            #Features de la frame
+            sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
+            #
+            df_feature_no_event <- df_feature_no_event %>% add_row(
+              filename = audio,
+              start = moment,
+              end = moment + frame_size,
+              event = 0,
+              
+              th = seewave::th(env(wav_file, plot = FALSE)),
+              maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
+              meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
+              
+              smean = sp$mean,
+              ssd = sp$sd,
+              ssem = sp$sem,
+              smedian = sp$median,
+              smode = sp$mode,
+              sQ25 = sp$Q25,
+              sQ75 = sp$Q75,
+              sIQR = sp$IQR,
+              scent = sp$cent,
+              sskewness = sp$skewness,
+              skurtosis = sp$kurtosis,
+              ssfm = sp$sfm,
+              ssh = sp$sh)
+            
+          }
+        }
+      }
+    }
+  }
+  return(as.data.frame(df_feature_no_event))
+}
+get.error <- function(class,pred){
+  cont.tab <- table(class,pred)
+  return((cont.tab[2,1]+cont.tab[1,2])/(sum(cont.tab)))
+}
+get.sensitivity <- function(class,pred){
+  cont.tab <- table(class,pred)
+  return((cont.tab[2,2])/(sum(cont.tab[2,])))
+}
+get.specificity <- function(class,pred){
+  cont.tab <- table(class,pred)
+  return((cont.tab[1,1])/(sum(cont.tab[1,])))
+}
+
 #Plage des paramètres
-plage_size <- c(0.2, 0.2, 0)
-plage_ovl_croc <- c(0.4, 0.7, 0.1)
-plage_ovl_no_event <- c(0, 0.3, 0.3)
-plage_exp <- c(0, 0.6, 0.6)
+plage_size <- c(0.1, 0.2, 0.05)
+plage_ovl_croc <- c(0.4, 0.8, 0.2)
+plage_ovl_no_event <- c(0, 0.2, 0.2)
+plage_exp <- c(0, 0.8, 0.4)
 
 #Initialisation
 df_wav_c <- df_wav %>% filter(annotation == "croc")
@@ -682,13 +919,13 @@ for (size in seq(from = plage_size[1], to = plage_size[2], by = plage_size[3] ))
     }
   }
 }
-df_ERROR_ovl <- as.data.frame(df_ERROR_ovl)
-#write.table(df_ERROR_ovl, file = "data/data_perso/df_ERROR_ovl_27_01.txt")
+ df_ERROR_ovl <- as.data.frame(df_ERROR_ovl)
+#write.table(df_ERROR_ovl, file = "data/data_perso/df_ERROR_ovl_27_01_complete.txt")
 
 # RANDOM FOREST
 size <- 0.2
 ovl_croc <- 0.4
-ovl_no_event <- 0
+ovl_no_event <- 0.2
 expansion <- 0
 
 features_croc <- give_croc(df_wav_c, frame_size = size, ovlp_frame = ovl_croc, percent_expansion = expansion)
@@ -722,7 +959,7 @@ model_RF <- randomForest::randomForest(
 )
 
 model_RF
-saveRDS(model_RF, "./ProjetInge/final_model_27_01_erroreventminim.rds")
+saveRDS(model_RF, "./ProjetInge/final_model_27_01_error.rds")
 
 
 varImpPlot(model_RF)
