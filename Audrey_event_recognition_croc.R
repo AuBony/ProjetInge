@@ -478,6 +478,114 @@ df_ERROR_p <- as.data.frame(df_ERROR_p)
 df_ERROR_p
 #write.table(df_ERROR_p, file = "data/data_perso/df_ERROR_26_01.txt")
 
+# TEST DE L'INFLUENCE DU CHAT SUR LA QUALITE DE DETECTION ----
+#On va prendre le meilleur modèle de détection de croc 
+expansion <- 0.6
+size <- 0.2
+ovl_croc <- 0.7
+ovl_no_event <- 0
+
+Error_chat <- tibble(
+  chat = character(),
+  
+  ERROR_glob = numeric(),
+  class_1_glob = numeric(),
+  class_0_glob = numeric(),
+  
+  ERROR_chat = numeric(),
+  class_1_chat = numeric(),
+  class_0_chat = numeric(),
+  
+  d_ERROR = numeric(),
+  d_class_1 = numeric(),
+  d_class_0 = numeric(),
+  
+  expansion = numeric(),
+  size = numeric(),
+  ovl_croc = numeric(),
+  ovl_no_event = numeric()
+)
+
+features_croc <- give_croc(data = df_wav_c, frame_size = size, ovlp_frame = ovl_croc, percent_expansion = expansion)
+features_no_event <- give_no_event(data = df_wav_c, frame_size = size, ovlp_frame = ovl_no_event)
+
+for (chat in unique(df_wav_c$chat)){
+  print(chat)
+  
+  df_reduce <- filter(df_wav_c$chat != chat)
+  indice_croc <- grep(pattern = chat, x = feature_croc$filename)
+  indice_event <- grep(pattern = chat, x = feature_no_event$filename)
+  
+  ERROR_glob <-0
+  CONFU_0_glob <- 0
+  CONFU_1_glob <- 0
+  
+  ERROR_chat <- 0
+  CONFU_0_chat <- 0
+  CONFU_1_chat <- 0
+  
+  for (i in 1:10){
+    set.seed(i)
+    
+    filename_train <- sample(unique(df_reduce$filename), 0.7 * length(unique(df__reduce$filename)))
+    
+    croc_train <- features_croc %>% filter(filename %in% filename_train)
+    croc_test <- features_croc %>% filter(!(filename %in% filename_train))
+    
+    no_event_train <- features_no_event %>% filter(filename %in% filename_train)
+    no_event_test <- features_no_event %>% filter(!(filename %in% filename_train))
+    
+    y_train <- as.factor(c(croc_train$event, no_event_train$event))
+    x_train <- rbind.data.frame(croc_train[, 5:20], no_event_train[, 5:20])
+    
+    y_test <- as.factor((c(croc_test$event, no_event_test$event)))
+    x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
+    
+    y_test_2 <- as.factor(c(features_croc[indice_croc], features_no_event[indice_event]))
+    x_test_2 <- rbind.data.frame(features_croc[indice_croc, 5:20], features_no_event[indice_event, 5:20])
+    
+    #Model
+    model <- randomForest( y_train~ .,
+                           data = x_train,
+                           ntree = 40,
+                           mtry = 4,
+                           importance = TRUE)
+    
+    pred_test <-  predict(model, newdata = x_test)
+    ERROR_glob <- ERROR_glob + get.error(y_test, pred_test)
+    CONFU_0_glob <- CONFU_0_glob + model$confusion[1,3]
+    CONFU_1_glob <- CONFU_1_glob + model$confusion[2,3]
+    
+    
+    ERROR <- ERROR + get.error(y_test, pred_test)
+    CONFU_0 <- CONFU_0 + model$confusion[1,3]
+    CONFU_1 <- CONFU_1 + model$confusion[2,3]
+  }
+  
+  Error_chat <- Error_chat %>% add_row(
+    chat = chat,
+    
+    ERROR_glob = ERROR_glob/10,
+    class_1_glob = CONFU_1_glob/10,
+    class_0_glob = CONFU_0_glob/10,
+    
+    ERROR_chat = ERROR_chat/10,
+    class_1_chat = CONFU_1_chat/10,
+    class_0_chat = CONFU_0_chat/10,
+    
+    d_ERROR = ERROR_glob/10 - ERROR_chat/10,
+    d_class_1 = CONFU_1_glob/10 - CONFU_1_chat/10,
+    d_class_0 = CONFU_0_glob/10 - CONFU_0_chat/10,
+    
+    expansion = expansion,
+    size = size,
+    ovl_croc = ovl_croc,
+    ovl_no_event = ovl_no_event
+  )
+}
+
+
+
 # TEST DES PARAMETRES D'ECHANTILLONNAGE - APPROCHE SIMULATOIRE TEST SI OVLP DIFFERENT ENTRE CROC ET NO EVENT----
 
 #Plage des paramètres
