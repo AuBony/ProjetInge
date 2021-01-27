@@ -80,15 +80,16 @@ calc_features <- function(data){
   # for each different audio 
   for (audio in unique(data$filename)){
     
-    cat("_")
     print(audio)
+    tab <- data %>% filter(filename == audio)
+    
     # moment is the start of each frame
-    for (moment in 1:nrow(data %>% filter(filename == audio))){
+    for (moment in 1:nrow(tab)){
       
       # charge the wav in the frame
       wav_file <- readWave(paste0(path, 'cleanwav/', audio),
-                           from = data$start[moment],
-                           to = data$end[moment],
+                           from = tab$start[moment],
+                           to = tab$end[moment],
                            units = "seconds")
       
       # features of the frame
@@ -99,8 +100,8 @@ calc_features <- function(data){
       
       df_feature <- df_feature %>% add_row(
         filename = audio,
-        start = data$start[moment],
-        end = data$end[moment],
+        start = tab$start[moment],
+        end = tab$end[moment],
         
         th = seewave::th(env(wav_file, plot = FALSE)),
         maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
@@ -125,17 +126,75 @@ calc_features <- function(data){
   return(df_feature)
 }
 
-count_peaks2 <- function(wav, amp_lim, diff_lim, prob){
+frame_pts <- function(audio, step){
+  print(audio)
+  df1 <- pred_frame %>% filter(filename == audio)
+  n <- df1$end[nrow(df1)] * 44100
+  pts <- seq(0, n, by = step)
+  df <- data.frame(pts = pts, 
+                   time = pts/44100, 
+                   prob_0 = rep(0,length(pts)),
+                   prob_1 = rep(0,length(pts)))
+  a <- 1
+  for (k in df$time){
+    window_index <- which(k >= df1$start & k <= df1$end)
+    df$prob_0[a] <- round(mean(df1$no_event[window_index]), 3)
+    df$prob_1[a] <- round(mean(df1$event[window_index]), 3)
+    a <- a+1
+  }
+  return(df)
+}
+
+imp_norm <- function(file_name, path){
+  # INPUTS : 
+  # file_name : character, name of the wave file to import and normalize
+  # path : character, path to the file
+  # OUTPUT : 
+  # wave file imported and normalized
+  return(normalize(readWave(paste0(path,'cleanwav/',file_name)), center = TRUE))
+}
+
+count_peaks2 <- function(wav, amp_lim, diff_lim, step, pred_rf){
   # INPUTS:
   # wav: Wave, an element of wavlist (a recording as wave)
   # amp_lim : numeric, amplitude limit of detection
   # diff_lim : numeric, minimal distance between 2 peaks
-  # probs : vector, probability of event and as many lines as pts
+  # step : numeric, step of sampling for RF results
+  # pred_rf : dataframe, pts | time | prob_0 | prob_1 predicted by random forest
+  #           for the corresponding wav
+  # OUTPUT:
+  # c : numeric, count of peaks in the wav
+  c <- 1
+  vec <- wav@left[pred_rf$pts+1]
+  vecsel <- which((abs(vec) > amp_lim) & pred_rf$prob_1 > 0.5)
+  if (length(vecsel) == 0){
+    c <- 0
+  } else if (length(vecsel) > 1) {
+    for (k in 2:length(vecsel)){
+      if (abs(vecsel[k]-vecsel[k-1]) > diff_lim){
+        c <- c + 1
+      }
+    }}
+  return(c)
+}
+
+count_peaks3 <- function(wav, amp_lim, diff_lim, step, pred_rf){
+  # INPUTS:
+  # wav: Wave, an element of wavlist (a recording as wave)
+  # amp_lim : numeric, amplitude limit of detection
+  # diff_lim : numeric, minimal distance between 2 peaks
+  # step : numeric, step of sampling for RF results
+  # pred_rf : dataframe, pts | time | prob_0 | prob_1 predicted by random forest
+  #           for the corresponding wav
   # OUTPUT:
   # c : numeric, count of peaks in the wav
   c <- 1
   vec <- wav@left
-  vecsel <- which((abs(vec) > amp_lim) & prob > 0.4)
+  vecselamp <- which(abs(vec) > amp_lim)
+  vecselprob <- pred_rf$pts[which(pred_rf$prob_1 > 0.5)]
+  print(vecselamp)
+  print(vecselprob)
+  vecsel <- intersect(vecselamp, vecselprob)
   if (length(vecsel) == 0){
     c <- 0
   } else if (length(vecsel) > 1) {
@@ -149,13 +208,15 @@ count_peaks2 <- function(wav, amp_lim, diff_lim, prob){
 
 #---- DETECTION ON COMPLETE SIGNAL ----
 
+# features calculation on complete samples (per frames)
 fich <- list.files(paste0(path,'cleanwav'))
 dta <- lapply(fich, FUN = frame_cut, path = paste0(path,'cleanwav/'), 
               window_length = 0.1, overlap = 0.7)
 data <- ldply(dta, rbind)
 df_feature <- calc_features(data)
 
-model <- readRDS("~/GitHub/ProjetInge/final_model_26_01.rds")
+# probabilies calculation of belonging to event or no-event class with RF model
+model <- readRDS("~/GitHub/ProjetInge/final_model_26_01_2.rds")
 pred <- predict(model, newdata = df_feature, type = 'prob') # 17227 | 2
 pred_frame <- data.frame(filename = df_feature$filename,
                          start = df_feature$start,
@@ -163,27 +224,27 @@ pred_frame <- data.frame(filename = df_feature$filename,
                          no_event = pred[,1],
                          event = pred[,2])
 
-pred_pts <- as.list(fich)
-a <- 1
-for (audio in unique(data$filename)){
-  df1 <- pred_frame %>% filter(filename == audio)
-  n <- length(readWave(paste0(path, 'cleanwav/', audio)))
-  df <- data.frame(pts = seq(0, n, by = 1), 
-                   time = seq(0, n/44100, length.out = n+1), 
-                   prob_0 = rep(0,n+1),
-                   prob_1 = rep(0,n+1))
-  for (k in 1:n){
-    cat('_')
-    t <- k/44100
-    window_index <- which(t >= df1$start & t<= df1$end)
-    df$prob_0[k] <- mean(df1$no_event[window_index])
-    df$prob_1[k] <- mean(df1$event[window_index])
-  }
-  pred_pts[[a]] <- df
-  a <- a+1
+pred_pts <- lapply(fich, FUN = frame_pts, step = 10) 
+
+plot(pred_pts[[2]]$time, pred_pts[[2]]$prob_1, type = 'l')
+plot(wavlist[[2]])
+
+# counting events on total samples
+wavlist <- lapply(fich, FUN = imp_norm, path = path)
+amp_lim = 0.4
+diff_lim = 18500
+
+count <- c()
+for (k in 1:length(wavlist)){
+  print(k)
+  count <- c(count, count_peaks3(wav = wavlist[[k]], step = 50, 
+                                 amp_lim = amp_lim, diff_lim = diff_lim,
+                                 pred_rf = pred_pts[[k]]))
 }
+count
+mse(count, eff$nb_bk)
 
-
-
-
-
+count_peaks3(wav = wavlist[[2]], step = 50, 
+             amp_lim = amp_lim, diff_lim = diff_lim,
+             pred_rf = pred_pts[[2]])
+#### les pics d'amplitudes sont pas dans les pas des probas calculées
