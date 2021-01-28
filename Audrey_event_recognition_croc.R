@@ -478,8 +478,17 @@ df_ERROR_p <- as.data.frame(df_ERROR_p)
 df_ERROR_p
 #write.table(df_ERROR_p, file = "data/data_perso/df_ERROR_26_01.txt")
 
-# TEST DE L'INFLUENCE DU CHAT SUR LA QUALITE DE DETECTION ----
+# TEST DE INFLUENCE DU CHAT SUR LA QUALITE DE DETECTION ----
 #On va prendre le meilleur modèle de détection de croc 
+require(dplyr)
+require(randomForest)
+require(tidyr)
+
+get.error <- function(class,pred){
+  cont.tab <- table(class,pred)
+  return((cont.tab[2,1]+cont.tab[1,2])/(sum(cont.tab)))
+}
+
 expansion <- 0.6
 size <- 0.2
 ovl_croc <- 0.7
@@ -506,15 +515,16 @@ Error_chat <- tibble(
   ovl_no_event = numeric()
 )
 
-features_croc <- give_croc(data = df_wav_c, frame_size = size, ovlp_frame = ovl_croc, percent_expansion = expansion)
-features_no_event <- give_no_event(data = df_wav_c, frame_size = size, ovlp_frame = ovl_no_event)
+feature_croc <- give_croc(data = df_wav_c, frame_size = size, ovlp_frame = ovl_croc, percent_expansion = expansion)
+feature_no_event <- give_no_event(data = df_wav_c, frame_size = size, ovlp_frame = ovl_no_event)
 
 for (chat in unique(df_wav_c$chat)){
   print(chat)
   
-  df_reduce <- filter(df_wav_c$chat != chat)
+  indice_chat <- grep(pattern = chat, x = df_wav_c$chat)
   indice_croc <- grep(pattern = chat, x = feature_croc$filename)
   indice_event <- grep(pattern = chat, x = feature_no_event$filename)
+  df_reduce <- df_wav_c[-indice_chat,]
   
   ERROR_glob <-0
   CONFU_0_glob <- 0
@@ -527,10 +537,10 @@ for (chat in unique(df_wav_c$chat)){
   for (i in 1:10){
     set.seed(i)
     
-    filename_train <- sample(unique(df_reduce$filename), 0.7 * length(unique(df__reduce$filename)))
+    filename_train <- sample(unique(df_reduce$filename), 0.7 * length(unique(df_reduce$filename)))
     
-    croc_train <- features_croc %>% filter(filename %in% filename_train)
-    croc_test <- features_croc %>% filter(!(filename %in% filename_train))
+    croc_train <- feature_croc %>% filter(filename %in% filename_train)
+    croc_test <- feature_croc %>% filter(!(filename %in% filename_train))
     
     no_event_train <- features_no_event %>% filter(filename %in% filename_train)
     no_event_test <- features_no_event %>% filter(!(filename %in% filename_train))
@@ -541,8 +551,8 @@ for (chat in unique(df_wav_c$chat)){
     y_test <- as.factor((c(croc_test$event, no_event_test$event)))
     x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
     
-    y_test_2 <- as.factor(c(features_croc[indice_croc], features_no_event[indice_event]))
-    x_test_2 <- rbind.data.frame(features_croc[indice_croc, 5:20], features_no_event[indice_event, 5:20])
+    y_test_chat <- as.factor(c(feature_croc[indice_croc,"event"], features_no_event[indice_event,"event"]))
+    x_test_chat <- rbind.data.frame(feature_croc[indice_croc, 5:20], features_no_event[indice_event, 5:20])
     
     #Model
     model <- randomForest( y_train~ .,
@@ -557,9 +567,11 @@ for (chat in unique(df_wav_c$chat)){
     CONFU_1_glob <- CONFU_1_glob + model$confusion[2,3]
     
     
-    ERROR <- ERROR + get.error(y_test, pred_test)
-    CONFU_0 <- CONFU_0 + model$confusion[1,3]
-    CONFU_1 <- CONFU_1 + model$confusion[2,3]
+    pred_test_chat <-  predict(model, newdata = x_test_chat)
+    matrix_chat <- table(pred_test_chat, y_test_chat)
+    ERROR_chat <- ERROR_chat + (matrix_chat[2] + matrix_chat[3]) / sum(matrix_chat)
+    CONFU_0_chat <- CONFU_0 + (matrix_chat[2] / sum(matrix_chat[,1]))
+    CONFU_1_chat <- CONFU_1 + (matrix_chat[3] / sum(matrix_chat[,2]))
   }
   
   Error_chat <- Error_chat %>% add_row(
@@ -573,9 +585,9 @@ for (chat in unique(df_wav_c$chat)){
     class_1_chat = CONFU_1_chat/10,
     class_0_chat = CONFU_0_chat/10,
     
-    d_ERROR = ERROR_glob/10 - ERROR_chat/10,
-    d_class_1 = CONFU_1_glob/10 - CONFU_1_chat/10,
-    d_class_0 = CONFU_0_glob/10 - CONFU_0_chat/10,
+    d_ERROR =  ERROR_chat/10 - ERROR_glob/10,
+    d_class_1 = CONFU_1_chat/10 - CONFU_1_glob/10,
+    d_class_0 = CONFU_0_chat/10 - CONFU_0_glob/10,
     
     expansion = expansion,
     size = size,
@@ -583,8 +595,19 @@ for (chat in unique(df_wav_c$chat)){
     ovl_no_event = ovl_no_event
   )
 }
+Error_chat <- as.data.frame(Error_chat)
 
+Error_chat
 
+#Vizu
+require(ggplot2)
+Error_chat %>% 
+  select(chat, ERROR_glob, ERROR_chat) %>% 
+  gather("ERROR", "value", -chat) %>% 
+  ggplot(aes(x= as.factor(chat), y = value, fill = ERROR)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  labs(main = "Impact du facteur chat sur la qualité de prédiction") +
+  theme_bw()
 
 # TEST DES PARAMETRES D'ECHANTILLONNAGE - APPROCHE SIMULATOIRE TEST SI OVLP DIFFERENT ENTRE CROC ET NO EVENT----
 
