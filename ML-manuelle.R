@@ -126,9 +126,9 @@ calc_features <- function(data){
   return(df_feature)
 }
 
-frame_pts <- function(audio, step){
+frame_pts <- function(audio, step, pred){
   print(audio)
-  df1 <- pred_frame %>% filter(filename == audio)
+  df1 <- pred %>% filter(filename == audio)
   n <- df1$end[nrow(df1)] * 44100
   pts <- seq(0, n, by = step)
   df <- data.frame(pts = pts, 
@@ -217,7 +217,7 @@ mse <- function(pred, act){
 # features calculation on complete samples (per frames)
 fich <- list.files(paste0(path,'cleanwav'))
 dta <- lapply(fich, FUN = frame_cut, path = paste0(path,'cleanwav/'), 
-              window_length = 0.1, overlap = 0.4)
+              window_length = 0.2, overlap = 0.4)
 data <- ldply(dta, rbind)
 df_feature <- calc_features(data)
 
@@ -229,15 +229,15 @@ wavlist <- lapply(fich, FUN = imp_norm, path = path)
 diff_lim <- 18500
 
 # probabilies calculation of belonging to event or no-event class with RF model
-model <- readRDS("~/GitHub/ProjetInge/final_model_27_01_errorglobminim.rds")
+model <- readRDS("~/GitHub/ProjetInge/final_model_27_01_error.rds")
 pred <- predict(model, newdata = df_feature, type = 'prob') # 17227 | 2
-pred_frame <- data.frame(filename = df_feature$filename,
+pred <- data.frame(filename = df_feature$filename,
                          start = df_feature$start,
                          end = df_feature$end,
                          no_event = pred[,1],
                          event = pred[,2])
 
-pred_pts <- lapply(fich, FUN = frame_pts, step = 20) 
+pred_pts <- lapply(fich, FUN = frame_pts, step = 20, pred = pred) 
 
 # visualization
 i <- 1
@@ -342,7 +342,6 @@ for (i in 1:nrow(param)){
                                    prob_lim = param$prob_lim[i],
                                    pred_rf = pred_pts[[k]]))
   }
-  print(count)
   param$mse[i] <- mse(count, actual$nb_bk)
 }
 p <- ggplot(param, aes(x = amp_lim, y = prob_lim, fill = log(mse))) +
@@ -373,14 +372,17 @@ length(which(count4 == actual$nb_bk))
 
 df4 <- data.frame(actual = actual$nb_bk, prediction = count4)
 df4 <- df4 %>% add_count(actual, prediction)
+m <- max(actual$nb_bk)+1
 
 title4 <- paste0('Number of breaks, predicted vs actual \n for amp_lim = ', amp_lim,
                  ', diff_lim = ', diff_lim, ' and prob_lim = ', prob_lim)
 ggplot(df4, aes(x = actual, y = prediction)) +
-  geom_segment(aes(x = 0, y = 0, xend = 6, yend = 6)) +
-  geom_point(aes(col = n), size = 3) +
-  ylim(0,6) +
-  xlim(0,6) +
+  stat_density2d(geom='tile', aes(fill=..density..), contour = FALSE) +
+  geom_segment(aes(x = 0, y = 0, xend = m, yend = m), 
+               colour = 'lightgrey', alpha = 0.5) +
+  geom_point(colour='lightgrey', size = 1) +
+  scale_x_continuous(breaks = seq(0, m, by = 1)) +
+  scale_y_continuous(breaks = seq(0, m, by = 1)) +
   theme(plot.title = element_text()) +
   labs(title = title4) +
   theme_light()
