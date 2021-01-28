@@ -609,6 +609,169 @@ Error_chat %>%
   labs(main = "Impact du facteur chat sur la qualité de prédiction") +
   theme_bw()
 
+Error_kibble %>% 
+  select(chat, class_1_glob, class_1_kibble) %>% 
+  gather("CLASS_1", "value", -chat) %>% 
+  ggplot(aes(x= as.factor(chat), y = value, fill = CLASS_1)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle("Impact du facteur kibble sur la qualité de prédiction des crocs") +
+  xlab("")+
+  ylab("Error Class 1")+
+  theme_minimal()
+
+# TEST DE INFLUENCE DE LA FRIANDISE SUR LA QUALITE DE DETECTION ----
+#On va prendre le meilleur modèle de détection de croc 
+require(dplyr)
+require(randomForest)
+require(tidyr)
+
+get.error <- function(class,pred){
+  cont.tab <- table(class,pred)
+  return((cont.tab[2,1]+cont.tab[1,2])/(sum(cont.tab)))
+}
+
+expansion <- 0.6
+size <- 0.2
+ovl_croc <- 0.7
+ovl_no_event <- 0
+
+Error_kibble <- tibble(
+  kibble = character(),
+  
+  ERROR_glob = numeric(),
+  class_1_glob = numeric(),
+  class_0_glob = numeric(),
+  
+  ERROR_kibble = numeric(),
+  class_1_kibble = numeric(),
+  class_0_kibble = numeric(),
+  
+  d_ERROR = numeric(),
+  d_class_1 = numeric(),
+  d_class_0 = numeric(),
+  
+  expansion = numeric(),
+  size = numeric(),
+  ovl_croc = numeric(),
+  ovl_no_event = numeric()
+)
+
+feature_croc <- give_croc(data = df_wav_c, frame_size = size, ovlp_frame = ovl_croc, percent_expansion = expansion)
+feature_no_event <- give_no_event(data = df_wav_c, frame_size = size, ovlp_frame = ovl_no_event)
+
+for (kibble in unique(df_wav_c$kibble)){
+  print(kibble)
+  
+  indice_kibble <- grep(pattern = kibble, x = df_wav_c$kibble)
+  indice_croc <- grep(pattern = kibble, x = feature_croc$filename)
+  indice_event <- grep(pattern = kibble, x = feature_no_event$filename)
+  df_reduce <- df_wav_c[-indice_kibble,]
+  
+  ERROR_glob <-0
+  CONFU_0_glob <- 0
+  CONFU_1_glob <- 0
+  
+  ERROR_kibble <- 0
+  CONFU_0_kibble <- 0
+  CONFU_1_kibble <- 0
+  
+  for (i in 1:10){
+    set.seed(i)
+    
+    filename_train <- sample(unique(df_reduce$filename), 0.7 * length(unique(df_reduce$filename)))
+    
+    croc_train <- feature_croc %>% filter(filename %in% filename_train)
+    croc_test <- feature_croc %>% filter(!(filename %in% filename_train))
+    
+    no_event_train <- features_no_event %>% filter(filename %in% filename_train)
+    no_event_test <- features_no_event %>% filter(!(filename %in% filename_train))
+    
+    y_train <- as.factor(c(croc_train$event, no_event_train$event))
+    x_train <- rbind.data.frame(croc_train[, 5:20], no_event_train[, 5:20])
+    
+    y_test <- as.factor((c(croc_test$event, no_event_test$event)))
+    x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
+    
+    y_test_kibble <- as.factor(c(feature_croc[indice_croc,"event"], features_no_event[indice_event,"event"]))
+    x_test_kibble <- rbind.data.frame(feature_croc[indice_croc, 5:20], features_no_event[indice_event, 5:20])
+    
+    #Model
+    model <- randomForest( y_train~ .,
+                           data = x_train,
+                           ntree = 40,
+                           mtry = 4,
+                           importance = TRUE)
+    
+    pred_test <-  predict(model, newdata = x_test)
+    ERROR_glob <- ERROR_glob + get.error(y_test, pred_test)
+    CONFU_0_glob <- CONFU_0_glob + model$confusion[1,3]
+    CONFU_1_glob <- CONFU_1_glob + model$confusion[2,3]
+    
+    
+    pred_test_kibble <-  predict(model, newdata = x_test_kibble)
+    matrix_kibble <- table(pred_test_kibble, y_test_kibble)
+    ERROR_kibble <- ERROR_kibble + (matrix_kibble[2] + matrix_kibble[3]) / sum(matrix_kibble)
+    CONFU_0_kibble <- CONFU_0 + (matrix_kibble[2] / sum(matrix_kibble[,1]))
+    CONFU_1_kibble <- CONFU_1 + (matrix_kibble[3] / sum(matrix_kibble[,2]))
+  }
+  
+  Error_kibble <- Error_kibble %>% add_row(
+    kibble = kibble,
+    
+    ERROR_glob = ERROR_glob/10,
+    class_1_glob = CONFU_1_glob/10,
+    class_0_glob = CONFU_0_glob/10,
+    
+    ERROR_kibble = ERROR_kibble/10,
+    class_1_kibble = CONFU_1_kibble/10,
+    class_0_kibble = CONFU_0_kibble/10,
+    
+    d_ERROR =  ERROR_kibble/10 - ERROR_glob/10,
+    d_class_1 = CONFU_1_kibble/10 - CONFU_1_glob/10,
+    d_class_0 = CONFU_0_kibble/10 - CONFU_0_glob/10,
+    
+    expansion = expansion,
+    size = size,
+    ovl_croc = ovl_croc,
+    ovl_no_event = ovl_no_event
+  )
+}
+Error_kibble <- as.data.frame(Error_kibble)
+
+Error_kibble
+
+#Vizu
+require(ggplot2)
+Error_kibble %>% 
+  select(kibble, ERROR_glob, ERROR_kibble) %>% 
+  gather("ERROR", "value", -kibble) %>% 
+  ggplot(aes(x= as.factor(kibble), y = value, fill = ERROR)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle("Impact du facteur kibble sur la qualité de prédiction") +
+  xlab("")+
+  ylab("Global Error")+
+  theme_minimal()
+
+Error_kibble %>% 
+  select(kibble, class_1_glob, class_1_kibble) %>% 
+  gather("CLASS_1", "value", -kibble) %>% 
+  ggplot(aes(x= as.factor(kibble), y = value, fill = CLASS_1)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle("Impact du facteur kibble sur la qualité de prédiction des crocs") +
+  xlab("")+
+  ylab("Error Class 1")+
+  theme_minimal()
+
+Error_kibble %>% 
+  select(kibble, class_0_glob, class_0_kibble) %>% 
+  gather("CLASS_0", "value", -kibble) %>% 
+  ggplot(aes(x= as.factor(kibble), y = value, fill = CLASS_0)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle("Impact du facteur kibble sur la qualité de prédiction des crocs") +
+  xlab("")+
+  ylab("Error Class 0")+
+  theme_minimal()
+
 # TEST DES PARAMETRES D'ECHANTILLONNAGE - APPROCHE SIMULATOIRE TEST SI OVLP DIFFERENT ENTRE CROC ET NO EVENT----
 
 #Function
