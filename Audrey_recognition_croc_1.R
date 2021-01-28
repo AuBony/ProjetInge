@@ -140,4 +140,94 @@ df %>% mutate(chat = as.character(map(strsplit(filename, "_"), 1)),
               kibble = as.character(map(strsplit(filename, "_"), 2))) %>% 
 Factoshiny()
 
-give_event <- function(data = df_wav){}
+give_event <- function(data = df_wav, frame_size = 0.02, nb_ech = 5, wav_path = "ProjetInge/cleanwav/"){
+  require(pracma)
+  require(dplyr)
+  require(tuneR)
+  require(seewave)
+  
+  df_feature_event <- tibble(filename = character(),
+                             start = numeric(),
+                             end = numeric(),
+                             event = numeric(),
+                             
+                             th = numeric(),
+                             maxdfreq = numeric(),
+                             meandfreq = numeric(),
+                             
+                             smean = numeric(),
+                             ssd = numeric(),
+                             ssem = numeric(),
+                             smedian = numeric(),
+                             smode = numeric(),
+                             sQ25 = numeric(),
+                             sQ75 = numeric(),
+                             sIQR = numeric(),
+                             scent = numeric(),
+                             sskewness = numeric(),
+                             skurtosis = numeric(),
+                             ssfm = numeric(),
+                             ssh = numeric())
+  
+  for (audio in unique(data[, "filename"])){
+    
+    no_event <- data %>% filter(filename ==  audio)
+    
+    for (l_no_event in 1:(nrow(no_event)+1)){
+      
+      if (l_no_event == 1){
+        deb <- 0
+        fin <- no_event$start[l_no_event]
+      } else if (l_no_event > nrow(no_event)){
+        deb <- no_event$end[l_no_event - 1]
+        fin <- duration(readWave(filename = paste0(wav_path, audio)))
+      } else if (l_no_event >1){
+        deb <- no_event$end[l_no_event - 1]
+        fin <- no_event$start[l_no_event]
+      } 
+      
+      if (fin - deb > nb_ech * frame_size){
+        
+        deb_rand <- round(runif(min =  deb, max = (fin-frame_size), n = nb_ech),digits =  2)
+        
+        for (moment in deb_rand){
+          wav_file <- readWave(paste0(wav_path, audio),
+                               from = moment,
+                               to = moment + frame_size,
+                               units = "seconds") 
+          wav_file <- tuneR::normalize(wav_file, center = TRUE)
+          
+          #Features de la frame
+          sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
+          #
+          df_feature_event <- df_feature_event %>% add_row(
+            filename = audio,
+            start = moment,
+            end = moment + frame_size,
+            event = 0,
+            
+            th = seewave::th(env(wav_file, plot = FALSE)),
+            maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
+            meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
+            
+            smean = sp$mean,
+            ssd = sp$sd,
+            ssem = sp$sem,
+            smedian = sp$median,
+            smode = sp$mode,
+            sQ25 = sp$Q25,
+            sQ75 = sp$Q75,
+            sIQR = sp$IQR,
+            scent = sp$cent,
+            sskewness = sp$skewness,
+            skurtosis = sp$kurtosis,
+            ssfm = sp$sfm,
+            ssh = sp$sh)
+        }
+    }
+    }
+  }
+  return(df_feature_event)
+}
+
+event <- give_event(data = df_wav)
