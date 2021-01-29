@@ -316,3 +316,4 @@ RF <- randomForest::randomForest(
 RF
 varImpPlot(RF) # ssem = standard error of the mean of frequency
 
+saveRDS(RF, file = 'C:/Users/HP/Documents/GitHub/ProjetInge/model_29_01_1.rds') 
