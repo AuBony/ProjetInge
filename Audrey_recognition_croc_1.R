@@ -3,13 +3,15 @@
 # Audrey Bony
 # 28/01/2021
 
-#DATA_WAV ----
+# DATA WAV IMPORTATION ----
+
 require(readr)  # for read_csv()
 require(dplyr)  # for mutate()
 require(tidyr)  # for unnest()
 require(purrr)  # for map(), reduce()
 library(stringr) # for str_replace()
 
+setwd('~/GitHub/')
 
 data_path <- "ProjetInge/labs/"
 files <- dir(data_path, pattern = "*.txt")
@@ -46,9 +48,11 @@ df_wav <- df_txt
 df_wav$filename <- str_replace(df_txt$filename, ".txt", ".wav")
 df_wav
 
-#DATA FEATURES ----
+# FUNCTIONS ----
 
 give_croc <- function(data = df_wav, expansion = 0, wav_path = "ProjetInge/cleanwav/" ){
+  # gives features for each break frame
+  
   require(dplyr)
   require(tuneR)
   require(seewave)
@@ -56,7 +60,7 @@ give_croc <- function(data = df_wav, expansion = 0, wav_path = "ProjetInge/clean
   df_feature_event <- tibble(filename = character(),
                              start = numeric(),
                              end = numeric(),
-                             event = numeric(),
+                             event = factor(levels = c('0','1')),
                              
                              th = numeric(),
                              maxdfreq = numeric(),
@@ -85,7 +89,42 @@ give_croc <- function(data = df_wav, expansion = 0, wav_path = "ProjetInge/clean
     
     #Selection d'un événement croc 
     for(l_croc in 1:nrow(crocs)){
-      if((crocs[l_croc,"start"] * (1 - expansion) > 0)){
+      if (expansion == 0){
+        wav_file <- readWave(paste0(wav_path, audio),
+                             from = crocs$start[l_croc],
+                             to = crocs$end[l_croc],
+                             units = "seconds") 
+        wav_file <- tuneR::normalize(wav_file, center = TRUE)
+        
+        #Features de la frame
+        sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = FALSE, norm = FALSE))
+        
+        # Ajout des features de la frame
+        df_feature_event <- df_feature_event %>% add_row(
+          filename = audio,
+          start =  crocs$start[l_croc],
+          end =  crocs$end[l_croc],
+          event = as.factor(1),
+          
+          th = seewave::th(env(wav_file, plot = FALSE)),
+          maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
+          meandfreq = mean(dfreq(wav_file, plot = FALSE)[,2]),
+          
+          smean = sp$mean,
+          ssd = sp$sd,
+          ssem = sp$sem,
+          smedian = sp$median,
+          smode = sp$mode,
+          sQ25 = sp$Q25,
+          sQ75 = sp$Q75,
+          sIQR = sp$IQR,
+          scent = sp$cent,
+          sskewness = sp$skewness,
+          skurtosis = sp$kurtosis,
+          ssfm = sp$sfm,
+          ssh = sp$sh)
+        
+      } else if((crocs[l_croc,"start"] * (1 - expansion) > 0)){
         e <- crocs[l_croc,"duration"] * expansion
         moment <- list(c(crocs[l_croc,"start"] - e, crocs[l_croc, "end"] - e),
                             c(crocs[l_croc,"start"], crocs[l_croc, "end"]),
@@ -106,7 +145,7 @@ give_croc <- function(data = df_wav, expansion = 0, wav_path = "ProjetInge/clean
             filename = audio,
             start =  moment[[k]][1],
             end =  moment[[k]][2],
-            event = 1,
+            event = as.factor(1),
             
             th = seewave::th(env(wav_file, plot = FALSE)),
             maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
@@ -132,24 +171,18 @@ give_croc <- function(data = df_wav, expansion = 0, wav_path = "ProjetInge/clean
   return(as.data.frame(df_feature_event))
 }
 
-df <- give_croc(df_wav, expansion = 0.2)
-
-
-require(Factoshiny)
-df %>% mutate(chat = as.character(map(strsplit(filename, "_"), 1)), 
-              kibble = as.character(map(strsplit(filename, "_"), 2))) %>% 
-Factoshiny()
-
-give_event <- function(data = df_wav, frame_size = 0.02, nb_ech = 5, wav_path = "ProjetInge/cleanwav/"){
+give_no_event <- function(data = df_wav, frame_size = 0.02, nb_ech = 5, wav_path = "ProjetInge/cleanwav/"){
+  # gives features for each no_event frame
+  
   require(pracma)
   require(dplyr)
   require(tuneR)
   require(seewave)
   
-  df_feature_event <- tibble(filename = character(),
+  df_feature_no_event <- tibble(filename = character(),
                              start = numeric(),
                              end = numeric(),
-                             event = numeric(),
+                             event = factor(levels = c('0','1')),
                              
                              th = numeric(),
                              maxdfreq = numeric(),
@@ -170,6 +203,8 @@ give_event <- function(data = df_wav, frame_size = 0.02, nb_ech = 5, wav_path = 
                              ssh = numeric())
   
   for (audio in unique(data[, "filename"])){
+    
+    print(audio)
     
     no_event <- data %>% filter(filename ==  audio)
     
@@ -200,11 +235,11 @@ give_event <- function(data = df_wav, frame_size = 0.02, nb_ech = 5, wav_path = 
           #Features de la frame
           sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
           #
-          df_feature_event <- df_feature_event %>% add_row(
+          df_feature_no_event <- df_feature_no_event %>% add_row(
             filename = audio,
             start = moment,
             end = moment + frame_size,
-            event = 0,
+            event = as.factor(0),
             
             th = seewave::th(env(wav_file, plot = FALSE)),
             maxdfreq = max(dfreq(wav_file, plot = FALSE)[,2]),
@@ -227,7 +262,57 @@ give_event <- function(data = df_wav, frame_size = 0.02, nb_ech = 5, wav_path = 
     }
     }
   }
-  return(df_feature_event)
+  return(as.data.frame(df_feature_no_event))
 }
 
-event <- give_event(data = df_wav)
+# VISUALISATION ----
+
+# df1 <- give_croc(df_wav, expansion = 0.2)
+# 
+# require(Factoshiny)
+# df1 %>% mutate(chat = as.character(map(strsplit(filename, "_"), 1)),
+#               kibble = as.character(map(strsplit(filename, "_"), 2))) %>%
+# Factoshiny()
+# 
+# df2 <- give_no_event(data = df_wav)
+#
+# rbind.data.frame(df1,df2) %>% 
+#   mutate(chat = as.character(map(strsplit(filename, "_"), 1)),
+#          kibble = as.character(map(strsplit(filename, "_"), 2))) %>% 
+#   Factoshiny()
+
+# COMPLETE DATASET, TRAIN/TEST ----
+
+filename_train <- sample(unique(df_wav$filename), 0.7 * length(unique(df_wav$filename)))
+
+df_train <- df_wav %>% filter(filename %in% filename_train)
+df_test <- df_wav %>%  filter(!(filename %in% filename_train))
+
+croc_train <- give_croc(data = df_train, expansion = 0.2)
+no_event_train <- give_no_event(data = df_train)
+
+croc_test <- give_croc(data = df_test, expansion = 0.2)
+no_event_test <- give_no_event(data = df_test)
+
+y_train <- as.factor(c(croc_train$event, no_event_train$event))
+x_train <- rbind.data.frame(croc_train[, 5:20], no_event_train[, 5:20])
+
+y_test <- as.factor((c(croc_test$event, no_event_test$event)))
+x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
+
+
+# RANDOM FOREST ALGORITHM ----
+
+require(randomForest)
+
+RF <- randomForest::randomForest(
+  y_train ~ .,
+  data = x_train,
+  ntree = 40, 
+  mtry = 4, 
+  x_test = x_test,
+  y_test = y_test,
+  importance = TRUE)
+RF
+varImpPlot(RF) # ssem = standard error of the mean of frequency
+
