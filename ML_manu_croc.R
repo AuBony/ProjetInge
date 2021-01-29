@@ -216,6 +216,8 @@ dta <- lapply(fich, FUN = frame_cut, path = paste0(path,'cleanwav/'),
               window_length = 0.02, overlap = 0.5)
 data <- ldply(dta, rbind)
 df_feature <- calc_features(data)
+write.table(df_feature, 
+            'C:/Users/HP/Documents/GitHub/ProjetInge/features/29_01_0.02-0.5.txt')
 
 # counting events on total samples
 actual <- read.table(paste0(path, 'nb_bk.csv'), sep = ';', dec = '.', header = TRUE)
@@ -234,3 +236,72 @@ pred <- data.frame(filename = df_feature$filename,
                    event = pred[,2])
 
 pred_pts <- lapply(fich, FUN = frame_pts, step = 20, pred = pred) 
+
+# visualization
+i <- 3
+plot(wavlist[[i]],
+     main = fich[i])
+plot(pred_pts[[i]]$time, pred_pts[[i]]$prob_1, type = 'l',
+     xlab = 'time', ylab = 'probabily of being an event',
+     main = fich[i], ylim = c(0,1))
+dev.off()
+
+# FINDING AN OPTIMAL COUPLE (AMP_LIM, PROB_LIM) ----
+
+param <- expand.grid(amp_lim = seq(0.1,1,by=0.1), prob_lim = seq(0.1,1,by = 0.1))
+param$mse <- rep(0, nrow(param))
+for (i in 1:nrow(param)){
+  count <- c()
+  print(paste('amp: ',param$amp_lim[i], 'prob: ', param$prob_lim[i]))
+  for (k in 1:length(wavlist)){
+    count <- c(count, count_peaks3(wav = wavlist[[k]], 
+                                   diff_lim = diff_lim, 
+                                   amp_lim = param$amp_lim[i],
+                                   prob_lim = param$prob_lim[i],
+                                   pred_rf = pred_pts[[k]]))
+  }
+  param$mse[i] <- mse(count, actual$nb_bk)
+}
+p <- ggplot(param, aes(x = amp_lim, y = prob_lim, fill = log(mse))) +
+  geom_tile() +
+  scale_fill_gradient(low = 'springgreen3', high = 'blue') +
+  scale_x_continuous(breaks = seq(0.1, 1, by = 0.1)) +
+  scale_y_continuous(breaks = seq(0.1, 1, by = 0.1)) +
+  theme_minimal()
+ggplotly(p)
+min(param$mse)
+amp_opt <- param$amp_lim[which.min(param$mse)]
+prob_opt <- param$prob_lim[which.min(param$mse)]
+
+
+# with optimal parameters
+prob_lim <- prob_opt
+amp_lim <- amp_opt
+count4 <- c()
+for (k in 1:length(wavlist)){
+  print(k)
+  count4 <- c(count4, count_peaks3(wav = wavlist[[k]], diff_lim = diff_lim, 
+                                   amp_lim = amp_lim, prob_lim = prob_lim,
+                                   pred_rf = pred_pts[[k]]))
+}
+count4
+mse(count4, actual$nb_bk)
+length(which(count4 == actual$nb_bk))
+
+df4 <- data.frame(actual = actual$nb_bk, prediction = count4)
+df4 <- df4 %>% add_count(actual, prediction)
+m <- max(actual$nb_bk)+1
+
+title4 <- paste0('Number of breaks, predicted vs actual \n for amp_lim = ', amp_lim,
+                 ', diff_lim = ', diff_lim, ' and prob_lim = ', prob_lim)
+ggplot(df4, aes(x = actual, y = prediction)) +
+  stat_density2d(geom='tile', aes(fill=..density..), contour = FALSE) +
+  geom_segment(aes(x = 0, y = 0, xend = m, yend = m), 
+               colour = 'lightgrey', alpha = 0.5) +
+  geom_point(colour='lightgrey', size = 1) +
+  scale_x_continuous(breaks = seq(0, m, by = 1)) +
+  scale_y_continuous(breaks = seq(0, m, by = 1)) +
+  theme(plot.title = element_text()) +
+  labs(title = title4) +
+  theme_light()
+
