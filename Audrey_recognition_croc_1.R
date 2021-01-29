@@ -11,9 +11,9 @@ require(tidyr)  # for unnest()
 require(purrr)  # for map(), reduce()
 library(stringr) # for str_replace()
 
-setwd('~/GitHub/')
+setwd('~/GitHub/ProjetInge/')
 
-data_path <- "ProjetInge/labs/"
+data_path <- "labs/"
 files <- dir(data_path, pattern = "*.txt")
 
 data <- tibble(filename = files) %>%
@@ -36,8 +36,8 @@ for (k in 1:nrow(data)){
   annotation <- c(annotation, data[[2]][[k]][[3]])
 }
 
-data_modif <- data.frame(filename = vec_noms, start = start, 
-                         end = end, annotation = annotation)
+data_modif <- data.frame(filename = vec_noms, start = round(start, 4), 
+                         end = round(end, 4), annotation = annotation)
 
 data_modif_chat_kibble_duration <- data_modif %>% 
   mutate(chat = as.character(map(strsplit(data_modif$filename, "_"), 1)), 
@@ -50,7 +50,7 @@ df_wav
 
 # FUNCTIONS ----
 
-give_croc <- function(data = df_wav, expansion = 0, wav_path = "ProjetInge/cleanwav/" ){
+give_croc <- function(data = df_wav, expansion = 0, wav_path = "cleanwav/" ){
   # gives features for each break frame
   
   require(dplyr)
@@ -171,7 +171,7 @@ give_croc <- function(data = df_wav, expansion = 0, wav_path = "ProjetInge/clean
   return(as.data.frame(df_feature_event))
 }
 
-give_no_event <- function(data = df_wav, frame_size = 0.02, nb_ech = 5, wav_path = "ProjetInge/cleanwav/"){
+give_no_event <- function(data = df_wav, frame_size = 0.02, nb_ech = 5, wav_path = "cleanwav/"){
   # gives features for each no_event frame
   
   require(pracma)
@@ -221,9 +221,10 @@ give_no_event <- function(data = df_wav, frame_size = 0.02, nb_ech = 5, wav_path
         fin <- no_event$start[l_no_event]
       } 
       
-      if (fin - deb > nb_ech * frame_size){
+      if (((fin - deb) > (frame_size + nb_ech*0.0001)) & ((fin - deb) > 0.2)){
         
-        deb_rand <- round(runif(min =  deb, max = (fin-frame_size), n = nb_ech),digits =  2)
+        deb_rand <- sample(x = (deb*10000):((fin-frame_size)*10000), size = nb_ech,
+                           replace = FALSE) / 10000
         
         for (moment in deb_rand){
           wav_file <- readWave(paste0(wav_path, audio),
@@ -289,10 +290,10 @@ df_train <- df_wav %>% filter(filename %in% filename_train)
 df_test <- df_wav %>%  filter(!(filename %in% filename_train))
 
 croc_train <- give_croc(data = df_train, expansion = 0.2)
-no_event_train <- give_no_event(data = df_train)
+no_event_train <- give_no_event(data = df_train, nb_ech = 10)
 
 croc_test <- give_croc(data = df_test, expansion = 0.2)
-no_event_test <- give_no_event(data = df_test)
+no_event_test <- give_no_event(data = df_test, nb_ech = 10)
 
 y_train <- as.factor(c(croc_train$event, no_event_train$event))
 x_train <- rbind.data.frame(croc_train[, 5:20], no_event_train[, 5:20])
