@@ -1,5 +1,5 @@
 
-path <- "ProjetInge/"
+setwd('~/GitHub/ProjetInge/')
 
 # PACKAGES ----
 
@@ -18,7 +18,7 @@ library(plyr) # ldply
 
 #---- FUNCTIONS ----
 
-frame_cut <- function(path, file, window_length, overlap){
+frame_cut <- function(path = 'cleanwav/', file, window_length, overlap){
   # INPUTS
   # path : character, path to the file of wav
   # file : character, name of the file
@@ -83,7 +83,7 @@ calc_features <- function(data){
     for (moment in 1:nrow(tab)){
       
       # charge the wav in the frame
-      wav_file <- readWave(paste0(path, 'cleanwav/', audio),
+      wav_file <- readWave(paste0('cleanwav/', audio),
                            from = tab$start[moment],
                            to = tab$end[moment],
                            units = "seconds")
@@ -141,13 +141,13 @@ frame_pts <- function(audio, step, pred){
   return(df)
 }
 
-imp_norm <- function(file_name, path){
+imp_norm <- function(file_name, path = 'cleanwav/'){
   # INPUTS : 
   # file_name : character, name of the wave file to import and normalize
   # path : character, path to the file
   # OUTPUT : 
   # wave file imported and normalized
-  return(normalize(readWave(paste0(path,'cleanwav/',file_name)), center = TRUE))
+  return(normalize(readWave(paste0(path, file_name)), center = TRUE))
 }
 
 count_peaks2 <- function(wav, diff_lim, prob_lim, pred_rf){
@@ -211,19 +211,22 @@ mse <- function(pred, act){
 # DETECTION ON COMPLETE SIGNAL ----
 
 # features calculation on complete samples (per frames)
-fich <- list.files(paste0(path,'cleanwav'))
-dta <- lapply(fich, FUN = frame_cut, path = paste0(path,'cleanwav/'), 
-              window_length = 0.02, overlap = 0.5)
-data <- ldply(dta, rbind)
-df_feature <- calc_features(data)
-write.table(df_feature, 
-            'C:/Users/HP/Documents/GitHub/ProjetInge/features/29_01_0.02-0.5.txt')
+fich <- list.files('cleanwav')
+# dta <- lapply(fich, FUN = frame_cut, path = 'cleanwav/', 
+#               window_length = 0.02, overlap = 0.5)
+# data <- ldply(dta, rbind)
+# df_feature <- calc_features(data)
+# write.csv(df_feature, 
+#           'C:/Users/HP/Documents/GitHub/ProjetInge/features/29_01_0.02-0.5.csv',
+#           row.names = FALSE)
+df_feature <- read.table('C:/Users/HP/Documents/GitHub/ProjetInge/features/29_01_0.02-0.5.csv',
+                         sep = ',', dec = '.', header = TRUE)
 
 # counting events on total samples
-actual <- read.table(paste0(path, 'nb_bk.csv'), sep = ';', dec = '.', header = TRUE)
+actual <- read.table('nb_bk.csv', sep = ';', dec = '.', header = TRUE)
 actual$filename <- as.factor(actual$filename)
 summary(actual)
-wavlist <- lapply(fich, FUN = imp_norm, path = path)
+wavlist <- lapply(fich, FUN = imp_norm)
 diff_lim <- 8820 # 0.2 sec
 
 # probabilies calculation of belonging to event or no-event class with RF model
