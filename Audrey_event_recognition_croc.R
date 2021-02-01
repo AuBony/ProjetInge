@@ -542,8 +542,8 @@ for (chat in unique(df_wav_c$chat)){
     croc_train <- feature_croc %>% filter(filename %in% filename_train)
     croc_test <- feature_croc %>% filter(!(filename %in% filename_train))
     
-    no_event_train <- features_no_event %>% filter(filename %in% filename_train)
-    no_event_test <- features_no_event %>% filter(!(filename %in% filename_train))
+    no_event_train <- feature_no_event %>% filter(filename %in% filename_train)
+    no_event_test <- feature_no_event %>% filter(!(filename %in% filename_train))
     
     y_train <- as.factor(c(croc_train$event, no_event_train$event))
     x_train <- rbind.data.frame(croc_train[, 5:20], no_event_train[, 5:20])
@@ -551,8 +551,8 @@ for (chat in unique(df_wav_c$chat)){
     y_test <- as.factor((c(croc_test$event, no_event_test$event)))
     x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
     
-    y_test_chat <- as.factor(c(feature_croc[indice_croc,"event"], features_no_event[indice_event,"event"]))
-    x_test_chat <- rbind.data.frame(feature_croc[indice_croc, 5:20], features_no_event[indice_event, 5:20])
+    y_test_chat <- as.factor(c(feature_croc[indice_croc,"event"], feature_no_event[indice_event,"event"]))
+    x_test_chat <- rbind.data.frame(feature_croc[indice_croc, 5:20], feature_no_event[indice_event, 5:20])
     
     #Model
     model <- randomForest( y_train~ .,
@@ -570,8 +570,8 @@ for (chat in unique(df_wav_c$chat)){
     pred_test_chat <-  predict(model, newdata = x_test_chat)
     matrix_chat <- table(pred_test_chat, y_test_chat)
     ERROR_chat <- ERROR_chat + (matrix_chat[2] + matrix_chat[3]) / sum(matrix_chat)
-    CONFU_0_chat <- CONFU_0 + (matrix_chat[2] / sum(matrix_chat[,1]))
-    CONFU_1_chat <- CONFU_1 + (matrix_chat[3] / sum(matrix_chat[,2]))
+    CONFU_0_chat <- CONFU_0_chat + (matrix_chat[2] / sum(matrix_chat[,1]))
+    CONFU_1_chat <- CONFU_1_chat + (matrix_chat[3] / sum(matrix_chat[,2]))
   }
   
   Error_chat <- Error_chat %>% add_row(
@@ -607,10 +607,12 @@ Error_chat %>%
   ggplot(aes(x= as.factor(chat), y = value, fill = ERROR)) +
   geom_bar(stat="identity", position=position_dodge()) +
   labs(main = "Impact du facteur chat sur la qualité de prédiction") +
+  xlab("")+
+  ylab("")+
   theme_bw()
 
-Error_kibble %>% 
-  select(chat, class_1_glob, class_1_kibble) %>% 
+Error_chat %>% 
+  select(chat, class_1_glob, class_1_chat) %>% 
   gather("CLASS_1", "value", -chat) %>% 
   ggplot(aes(x= as.factor(chat), y = value, fill = CLASS_1)) +
   geom_bar(stat="identity", position=position_dodge()) +
@@ -683,8 +685,8 @@ for (kibble in unique(df_wav_c$kibble)){
     croc_train <- feature_croc %>% filter(filename %in% filename_train)
     croc_test <- feature_croc %>% filter(!(filename %in% filename_train))
     
-    no_event_train <- features_no_event %>% filter(filename %in% filename_train)
-    no_event_test <- features_no_event %>% filter(!(filename %in% filename_train))
+    no_event_train <- feature_no_event %>% filter(filename %in% filename_train)
+    no_event_test <- feature_no_event %>% filter(!(filename %in% filename_train))
     
     y_train <- as.factor(c(croc_train$event, no_event_train$event))
     x_train <- rbind.data.frame(croc_train[, 5:20], no_event_train[, 5:20])
@@ -692,8 +694,8 @@ for (kibble in unique(df_wav_c$kibble)){
     y_test <- as.factor((c(croc_test$event, no_event_test$event)))
     x_test <- rbind.data.frame(croc_test[, 5:20], no_event_test[, 5:20])
     
-    y_test_kibble <- as.factor(c(feature_croc[indice_croc,"event"], features_no_event[indice_event,"event"]))
-    x_test_kibble <- rbind.data.frame(feature_croc[indice_croc, 5:20], features_no_event[indice_event, 5:20])
+    y_test_kibble <- as.factor(c(feature_croc[indice_croc,"event"], feature_no_event[indice_event,"event"]))
+    x_test_kibble <- rbind.data.frame(feature_croc[indice_croc, 5:20], feature_no_event[indice_event, 5:20])
     
     #Model
     model <- randomForest( y_train~ .,
@@ -711,8 +713,8 @@ for (kibble in unique(df_wav_c$kibble)){
     pred_test_kibble <-  predict(model, newdata = x_test_kibble)
     matrix_kibble <- table(pred_test_kibble, y_test_kibble)
     ERROR_kibble <- ERROR_kibble + (matrix_kibble[2] + matrix_kibble[3]) / sum(matrix_kibble)
-    CONFU_0_kibble <- CONFU_0 + (matrix_kibble[2] / sum(matrix_kibble[,1]))
-    CONFU_1_kibble <- CONFU_1 + (matrix_kibble[3] / sum(matrix_kibble[,2]))
+    CONFU_0_kibble <- CONFU_0_kibble + (matrix_kibble[2] / sum(matrix_kibble[,1]))
+    CONFU_1_kibble <- CONFU_1_kibble + (matrix_kibble[3] / sum(matrix_kibble[,2]))
   }
   
   Error_kibble <- Error_kibble %>% add_row(
