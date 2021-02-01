@@ -316,4 +316,13 @@ RF <- randomForest::randomForest(
 RF
 varImpPlot(RF) # ssem = standard error of the mean of frequency
 
+
+require(ROCR)
+pred_RF <- predict(RF, newdata = x_test, type = "prob")
+pred_class <-  prediction(pred_RF[,2], y_test)
+pred.test <- predict(RF, newdata = x_test)
+performance_RF <- performance(pred_class,measure = "tpr",x.measure= "fpr")
+plot(performance_RF, col = 4, lwd = 2)
+abline(0,1)
+
 saveRDS(RF, file = 'C:/Users/HP/Documents/GitHub/ProjetInge/model_29_01_1.rds') 
