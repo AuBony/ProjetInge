@@ -280,9 +280,9 @@ fich <- list.files(paste0(path,'wav0'))
 dta <- lapply(fich, FUN = frame_cut, path = paste0(path,'wav0/'),
               window_length = 0.2, overlap = 0.4)
 data <- ldply(dta, rbind)
-df_feature <- calc_features(data)
+df_feature <- calc_features(data, path = paste0(path,'wav0/'))
 write.csv(df_feature,
-          'C:/Users/HP/Documents/GitHub/ProjetInge/features/29_01_0.2-0.4_nocrocs.csv',
+          'C:/Users/HP/Documents/GitHub/ProjetInge/features/29_01_0.02-0.5_nocrocs.csv',
           row.names = FALSE)
 # df_feature <- read.table('C:/Users/HP/Documents/GitHub/ProjetInge/features/29_01_0.2-0.4_nocrocs.csv',
 #                          sep = ',', dec = '.', header = TRUE)
@@ -290,7 +290,7 @@ write.csv(df_feature,
 # counting events on total samples
 actual <- data.frame(filename = as.factor(fich), nb_bk = rep(0, length(fich)))
 summary(actual)
-wavlist <- lapply(fich, FUN = imp_norm, path = path)
+wavlist <- lapply(fich, FUN = imp_norm, path = paste0(path,'wav0/'))
 diff_lim <- 18500
 
 # probabilies calculation of belonging to event or no-event class with RF model
