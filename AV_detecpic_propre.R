@@ -1,4 +1,5 @@
 
+# path to the project file
 path <- '~/GitHub/ProjetInge/'
 
 # PACKAGES ----
@@ -11,6 +12,7 @@ require(purrr)  # for map(), reduce()
 library(stringr) # for str_replace()
 library(ggplot2)
 library(plotly)
+library(randomForest)
 
 # WITH ALL DATA, ONLY MANUAL PREDICTION ----
 
