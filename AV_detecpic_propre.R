@@ -586,7 +586,7 @@ ggplot(df5, aes(x = actual, y = prediction)) +
 
 # plot of prob_1 compared to amplitude for the wav number a
 
-a <- 3
+a <- 4
 title4 <- paste0('Probability for a point to belong to an event\ndepending on the time for recording ', fich[a])
 pred_pts[[a]] %>% ggplot(aes(x = time, y = prob_1)) +
   geom_line() +
