@@ -168,21 +168,31 @@ ind.train <- sample(1:nrow(IIB1_df_feature),n.train)
 
 x_train <- IIB1_df_feature[ind.train, 4:20]
 y_train <- as.data.frame(IIB1_df_feature[ind.train, "annotation"])
-y_train <- as.factor(y_train)
+y_train <- as.factor(y_train$annotation)
 x_test <- IIB1_df_feature[-ind.train, 4:20]
-y_test <- IIB1_df_feature[-ind.train, "annotation"]
+y_test <- as.factor(as.data.frame(IIB1_df_feature[-ind.train, "annotation"])$annotation)
 
 # Knn algorithm
 pred.test.knn.1 <- knn(train= x_train, test=x_test, cl= y_train, k=1)
 
 # Random Forest algorithm
+model.50 <- randomForest( y_train~ .,
+                          data = x_train,
+                          ntree = 50, na.action = na.omit,
+                          importance = TRUE)
+
+pred.test.rf.50 <- predict(model.50, newdata = x_test)
 
 # Comparison Knn VS Random Forest _ ROC Curve
-
 get.error(y_test, pred.test.knn.1)
 get.specificity(y_test, pred.test.knn.1)
 get.sensitivity(y_test, pred.test.knn.1)
 
+get.error(y_test,pred.test.rf.50)
+get.specificity(y_test,pred.test.rf.50)
+get.sensitivity(y_test,pred.test.rf.50)
+
+  #ROC Curves
 library(ROCR)
 AUC <- matrix(NA, nrow=5, ncol=1)
 colnames(AUC) <- c("AUC") 
