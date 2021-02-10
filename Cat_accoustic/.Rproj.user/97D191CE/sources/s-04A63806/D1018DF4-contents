@@ -138,14 +138,6 @@ give_feature_2 <- function(wav_path = "data/wav/", data = df_classif){
                sprec = numeric())
   
   for (j in 1:nrow(data)){
-    
-    #Counter
-    if (j%%100){
-      cat(".")
-    }else{
-      cat(".", "\n")
-    }
-    
     #Importing the frame as a wav file
     wav_file <- readWave(paste0(wav_path, data[j,1]),
                          from = data[j,2],
@@ -234,7 +226,6 @@ model_event$confusion
 # Secondary Functions
 get.error <- function(class,pred){
   cont.tab <- table(class,pred)
-  print(cont.tab)
   return((cont.tab[2,1]+cont.tab[1,2])/(sum(cont.tab)))
 }
 
@@ -247,6 +238,13 @@ get.sensitivity <- function(class,pred){
 get.specificity <- function(class,pred){
   cont.tab <- table(class,pred)
   return((cont.tab[1,1])/(sum(cont.tab[1,])))
+}
+
+plot_dfERROR_window <- function(df_ERROR){
+  plot(df_ERROR$window, df_ERROR$Sens, col = "orange", lwd = 2, type = 'l', ylim = c(0,1), xlab = "window length", ylab = "", main = "Event Detection")
+  lines(df_ERROR$window, df_ERROR$Spec, col = 'green4', lwd = 2)
+  lines(df_ERROR$window, df_ERROR$Error, col = 'red', lwd = 2)
+  legend("right",legend = c("ERROR", "Specificity", "Sensitivity"), col = c('red', 'green4', 'orange'), fill =  c('red', 'green4', 'orange'))
 }
 
 # Function
@@ -292,9 +290,9 @@ give_Error_window_length <- function(from = 0.1, to = 1, by = 0.1, repet = 10,  
                                                   importance = TRUE)
       
       pred_test_1 <-  predict(model, newdata = x_test_event)
-      ERROR <- ERROR + get.error(y_test_event_1, pred_test_1)
-      SENS <- SENS + get.sensitivity(y_test_event_1,pred_test_1)
-      SPEC <- SPEC + get.specificity(y_test_event_1,pred_test_1)
+      ERROR <- ERROR + get.error(y_test_event, pred_test_1)
+      SENS <- SENS + get.sensitivity(y_test_event,pred_test_1)
+      SPEC <- SPEC + get.specificity(y_test_event,pred_test_1)
     }
     
     #Save values
@@ -306,6 +304,11 @@ give_Error_window_length <- function(from = 0.1, to = 1, by = 0.1, repet = 10,  
                                                    Spec = SPEC / repet)
     cat("\n")
   }
+  return(as.data.frame(df_ERROR_window))
 }
 
+# Execution
+df_Error_window <- give_Error_window_length(from = 0.1, to = 1, by = 0.1, repet = 10, wav_path = "data/wav/", data = IIB2_df_wav)
 
+df_Error_window
+plot_dfERROR_window(df_Error_window)
