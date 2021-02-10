@@ -36,6 +36,7 @@ df_wav$filename <- str_replace(df_txt$filename, ".txt", ".wav")
 
 #DATA_FEATURE ----
 #library
+require(dplyr)
 library(soundgen)
 library(tuneR)
 library(seewave)
@@ -217,7 +218,7 @@ give_classif_event <- function(window_length = 0.8, data = df_wav){
   #Etape 1 : Parcourir les enregistrements labellés
   for (audio_path in unique(df_wav$filename)) {
     
-    audio <- readWave(paste0(file_wav_path, audio_path))
+    audio <- readWave(paste0(wav_path, audio_path))
     duration <- round(length(audio@left) / audio@samp.rate, 2)
     #Etape 2 : Déplacement dans un enregistrement par frame
     for (moment in seq(0, duration - window_length, by = window_length)){

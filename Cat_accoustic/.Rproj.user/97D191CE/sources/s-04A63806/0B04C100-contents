@@ -130,7 +130,7 @@ for (i in 1:nrow(IIB1_df_wav)){
 }
 
 ## MODEL ----
-## Goal : Differentiate between two sounds (breaks and bites) by testing two different algorithms.
+## Goal : Differentiate between two classes (breaks and bites) by testing two different algorithms.
 ## Input : IIB1_df_feature
 ## Output : Predicted class bites or breaks for each sound
 
