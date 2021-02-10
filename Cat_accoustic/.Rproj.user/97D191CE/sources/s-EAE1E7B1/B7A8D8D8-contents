@@ -130,18 +130,19 @@ for (i in 1:nrow(IIB1_df_wav)){
 }
 
 ## MODEL ----
-## Goal : 
+## Goal : Differentiate between two sounds (breaks and bites) by testing two different algorithms.
 ## Input : IIB1_df_feature
-## Output : Predicted class for each sound
+## Output : Predicted class bites or breaks for each sound
 
 # Df_feature (If you have not run the previous part)
 # IIB1_df_feature <- read.table("data/features/IIB1_df_feature.txt")
 
-#libraries
+# Libraries
 require(class)
 require(randomForest)
+require(ROCR)
 
-#Functions
+# Functions
 get.error <- function(class,pred){
   cont.tab <- table(class,pred)
   print(cont.tab)
@@ -173,7 +174,7 @@ x_test <- IIB1_df_feature[-ind.train, 4:20]
 y_test <- as.factor(as.data.frame(IIB1_df_feature[-ind.train, "annotation"])$annotation)
 
 # Knn algorithm
-pred.test.knn.1 <- knn(train= x_train, test=x_test, cl= y_train, k=1)
+pred.test.knn.1 <- class::knn(train= x_train, test=x_test, cl= y_train, k=1)
 
 # Random Forest algorithm
 model.50 <- randomForest( y_train~ .,
@@ -193,22 +194,17 @@ get.specificity(y_test,pred.test.rf.50)
 get.sensitivity(y_test,pred.test.rf.50)
 
   #ROC Curves
-library(ROCR)
-AUC <- matrix(NA, nrow=5, ncol=1)
-colnames(AUC) <- c("AUC") 
-rownames(AUC) <- c("KNN", "RF")
-
-knn_model <- knn(train=data.train[,4:20],test=data.test[,4:20],cl= data.train$annotation,k=10, prob = TRUE)
+knn_model <- class::knn(train=x_train,test=x_test,cl= y_train,k=1, prob = TRUE)
 prob <- attr(knn_model, "prob")
 prob <- 2*ifelse(knn_model == "-1", prob,1-prob) - 1
-pred_knn <- prediction(prob, data.test$annotation)
-performance_knn <- performance(pred_knn, "tpr", "fpr")
-#plot(performance_knn, col = 5, lwd = 1)
-plot(performance_knn, col = 5, lwd = 1, add = TRUE)
+pred_knn <- ROCR::prediction(prob, y_test)
+performance_knn <- ROCR::performance(pred_knn, "tpr", "fpr")
 
-pred_RF <- predict(model.50, newdata = data.test[,4:20], type = "prob")
-pred_class <-  prediction(pred_RF[,2], data.test$annotation)
-performance_RF <- performance(pred_class,measure = "tpr",x.measure= "fpr")
+pred_RF <- predict(model.50, newdata = x_test, type = "prob")
+pred_class <-  ROCR::prediction(pred_RF[,2], y_test)
+performance_RF <- ROCR::performance(pred_class,measure = "tpr",x.measure= "fpr")
+
+plot(performance_knn, col = 5, lwd = 2)
 plot(performance_RF, col = 3, lwd = 2, add = TRUE)
 abline(0,1)
 legend("bottomright", col = c(5,3), legend = c("Knn", "Random Forest"), fill = c(5,3))
