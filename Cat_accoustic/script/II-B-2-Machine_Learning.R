@@ -179,7 +179,7 @@ give_feature_2 <- function(wav_path = "data/wav/", data = df_classif){
                          sprec = sp$prec
     ) 
   }
-  return(df_feature)
+  return(as.data.frame(df_feature))
 }
 
 # Exectution
@@ -202,5 +202,110 @@ IIB2_df_feature_croc <- give_feature_2(wav_path = "data/wav/", data = df_classif
 # Df_feature (If you have not run the previous part)
 # IIB2_df_feature_event <- read.table("data/features/IIB2_df_feature_event.txt")
 # IIB2_df_feature_croc <- read.table("data/features/IIB2_df_feature_croc.txt")
+
+# Library
+require(randomForest)
+
+#Data train & test
+train_index_event <- sample(1:nrow(IIB2_df_feature_event), 0.7 * nrow(IIB2_df_feature_event))
+
+y_train_event <- as.factor(IIB2_df_feature_event[train_index_event, "event"])
+x_train_event <- IIB2_df_feature_event[train_index_event, 5:21]
+
+y_test_event <- as.factor(IIB2_df_feature_event[-train_index_event, "event"])
+x_test_event <- as.data.frame(IIB2_df_feature_event[-train_index_event, 5:21])
+
+# Model Random forest
+library(randomForest)
+
+model_event <- randomForest::randomForest(y_train_event ~ ., data = x_train_event,
+                                          ntree = 40,
+                                          importance = TRUE)
+model_event
+varImpPlot(model_event)
+model_event$confusion
+
+## PARAMETERS : WINDOW LENGTH ----
+## Goal : Select the best window length value
+## Input : A range of values for Window length. df_wav (list of labelled events).
+##        You need to execute functions in the part FEATURES.
+## Output : Error, specificity and sensibility of the model for each value of window length
+
+# Secondary Functions
+get.error <- function(class,pred){
+  cont.tab <- table(class,pred)
+  print(cont.tab)
+  return((cont.tab[2,1]+cont.tab[1,2])/(sum(cont.tab)))
+}
+
+get.sensitivity <- function(class,pred){
+  cont.tab <- table(class,pred)
+  return((cont.tab[2,2])/(sum(cont.tab[2,])))
+}
+
+
+get.specificity <- function(class,pred){
+  cont.tab <- table(class,pred)
+  return((cont.tab[1,1])/(sum(cont.tab[1,])))
+}
+
+# Function
+give_Error_window_length <- function(from = 0.1, to = 1, by = 0.1, repet = 10,  wav_path = "data/wav/", data = IIB2_df_wav){
+  # Goal : Select the best window length value
+  # Input : A range of values for Window length. df_wav (list of labelled events).
+  # Output : Error, specificity and sensibility of the model for each value of window length
+  require(dplyr)
+  require(randomForest)
+  
+  #Initialised the dataframe
+  df_ERROR_window <- data.frame(window = numeric(),
+                                event_1 = numeric(),
+                                event_0 = numeric(),
+                                Error = numeric (), 
+                                Sens = numeric(),
+                                Spec = numeric())
+  
+  #Browse through window values 
+  for (window in seq(from = from, to = to, by = by)){
+    df_event_1 <- give_classif_event(window_length = window, wav_path = wav_path, data = data)
+    df_feature <- give_feature_2(wav_path = wav_path, data = df_event_1)
+    
+    ERROR <- 0
+    SENS <- 0
+    SPEC <- 0
+    
+    for (run in (1:repet)){
+      cat("*")
+      
+      #Train test datasets
+      train_index_event <- sample(1:nrow(df_feature), 0.7 * nrow(df_feature))
+      
+      y_train_event <- as.factor(df_feature[train_index_event, "event"])
+      x_train_event <- df_feature[train_index_event, 5:21]
+      
+      y_test_event <- as.factor(df_feature[-train_index_event, "event"])
+      x_test_event <- as.data.frame(df_feature[-train_index_event, 5:21])
+      
+      #RandomForest Model
+      model <- randomForest::randomForest(y_train_event ~ ., data = x_train_event,
+                                                  ntree = 40,
+                                                  importance = TRUE)
+      
+      pred_test_1 <-  predict(model, newdata = x_test_event)
+      ERROR <- ERROR + get.error(y_test_event_1, pred_test_1)
+      SENS <- SENS + get.sensitivity(y_test_event_1,pred_test_1)
+      SPEC <- SPEC + get.specificity(y_test_event_1,pred_test_1)
+    }
+    
+    #Save values
+    df_ERROR_window <- df_ERROR_window %>% add_row(window = window,
+                                                   event_1 = nrow(df_event_1[df_event_1$event == "1",]),
+                                                   event_0 = nrow(df_event_1[df_event_1$event == "0",]),
+                                                   Error = ERROR / repet,
+                                                   Sens = SENS / repet,
+                                                   Spec = SPEC / repet)
+    cat("\n")
+  }
+}
 
 
