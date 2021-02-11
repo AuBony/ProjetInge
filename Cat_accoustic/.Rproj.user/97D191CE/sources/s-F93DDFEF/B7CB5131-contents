@@ -65,14 +65,20 @@ remove(data, data_modif, data_modif_chat_kibble_duration, data_modif_chat_kibble
 
 # Functions
 give_breaks <- function(frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0, wav_path = "data/wav/", data = IIB3_df_wav){
-  # Goal : Give features of frames from IIB3_df_wav recordings which contain a break sound
+  # Goal : Give features of frames from IIB3_df_wav recordings for break sounds
   # Input : list of labeled events
-  #         
-  # Output : Dataframe with features for each frames and if they are condidered as an event or not
+  #         frame size, ovl_frame : percentage of overlap between frames within the same sound,
+  #         percent_expansion : percentage of the window size that will be taken to exceed on either side of the labelled area,
+  #         It means the beginning frame will have a proportion of percent_expansion % which will not be a break sound but a background noise sound.
+  #         Same for the ending frame.
+  # Output : Dataframe with features for each frame.
+  
+  #Library
   require(dplyr)
   require(tuneR)
   require(seewave)
   
+  #Initialise the dataframe
   df_feature_event <- tibble(filename = character(),
                              start = numeric(),
                              end = numeric(),
@@ -96,7 +102,7 @@ give_breaks <- function(frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0,
                              ssfm = numeric(),
                              ssh = numeric())
   
-  #Selection d'un enregistrement
+  #Browse through the recordings.
   for (audio in unique(data[data$annotation == "croc", "filename"])){
     
     cat(".")
@@ -104,25 +110,26 @@ give_breaks <- function(frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0,
     crocs <- data %>% filter(filename ==  audio)
     
     
-    #Selection d'un événement croc 
+    #Selection of breaks in a recording 
     for(l_croc in 1:nrow(crocs)){
       
       
-      #Definition d'une zone de sample pour nos frames (on peut définir un interval un peu plus grand)
-      #Decoupage en frame
+      #Definition of a sample area for our frames (we can define a slightly larger interval)
+      #Cutting into frames
+      #Checking if the break is long enough to be cut into frames
       if (crocs[l_croc,"end"] + (frame_size*percent_expansion) - frame_size - crocs[l_croc,"start"] + (frame_size*percent_expansion) > frame_size ){
         
+        #Browse into a break sound
         for (moment in seq(from =  crocs[l_croc,"start"] - (frame_size*percent_expansion), to = crocs[l_croc,"end"] + (frame_size*percent_expansion) - frame_size, by = frame_size * (1-ovlp_frame))){
           
           wav_file <- readWave(paste0(wav_path, audio),
                                from = moment,
                                to = moment + frame_size,
-                               units = "seconds") 
-          wav_file <- tuneR::normalize(wav_file, center = TRUE)
+                               units = "seconds")
           
-          #Features de la frame
+          #Extraction of spectro properties
           sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
-          # Ajout des features de la frame
+          #Data recording.
           df_feature_event <- df_feature_event %>% add_row(
             filename = audio,
             start = moment,
@@ -147,21 +154,24 @@ give_breaks <- function(frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0,
             ssfm = sp$sfm,
             ssh = sp$sh)
         }
-        
       }
-      
-      
     }
-    
   }
-  
   return(as.data.frame(df_feature_event))
 }
 give_no_event <- function(frame_size = 0.1, ovlp_frame = 0, wav_path = "data/wav/", data = IIB3_df_wav){
+  # Goal : Give features of frames from IIB3_df_wav recordings for background noises
+  # Input : list of labeled events
+  #         frame size, ovl_frame : percentage of overlap between frames within the same sound,
+  # Output : Dataframe with features for each frame.
+  #         End of recordings are not sampled nor too short background noises parts.
+  
+  #Library
   require(dplyr)
   require(tuneR)
   require(seewave)
   
+  #Initialise the dataframe
   df_feature_no_event <- tibble(filename = character(),
                                 start = numeric(),
                                 end = numeric(),
