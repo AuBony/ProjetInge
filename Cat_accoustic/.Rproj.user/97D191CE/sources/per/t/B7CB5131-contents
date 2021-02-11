@@ -858,7 +858,7 @@ plot_ly(x = x, y = y, z = z, type = "contour") %>%
   layout(title = "Class Error 0", xaxis = list(title = "Frame Size"), yaxis = list(title = "Overlap"))
 
 x <- IIB3_df_ERROR_ovl$size
-y <- IIB3_df_ERROR_ovl$ovl
+y <- IIB3_df_ERROR_ovl$ovl_croc
 z <- IIB3_df_ERROR_ovl$class_error_1
 
 plot_ly(x = x, y = y, z = z, type = "contour",
@@ -891,14 +891,14 @@ plot_ly(x = x, y = y, z = z, type = "contour",
 
 # Ovl x expansion
 x <- IIB3_df_ERROR_ovl$expansion
-y <- IIB3_df_ERROR_ovl$ovl
+y <- IIB3_df_ERROR_ovl$ovl_croc
 z <- IIB3_df_ERROR_ovl$class_error_0
 
 plot_ly(x = x, y = y, z = z, type = "contour")  %>% 
   layout(title = "Class Error 0", xaxis = list(title = "Expansion"), yaxis = list(title = "Overlap"))
 
 x <- IIB3_df_ERROR_ovl$expansion
-y <- IIB3_df_ERROR_ovl$ovl
+y <- IIB3_df_ERROR_ovl$ovl_croc
 z <- IIB3_df_ERROR_ovl$class_error_1
 
 plot_ly(x = x, y = y, z = z, type = "contour",
