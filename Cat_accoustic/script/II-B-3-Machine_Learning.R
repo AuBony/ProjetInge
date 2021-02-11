@@ -58,13 +58,17 @@ remove(data, data_modif, data_modif_chat_kibble_duration, data_modif_chat_kibble
 ## FEATURES ----
 ## Goal : Extract features from recordings. Each break sound is cut into fix-size frames.
 ##        All areas between 2 breaks are considered as background noise and fully sampled.
-## Input : df_wav (list of labelled events)
+## Input : df_wav (list of labeled events)
 ## Output : IIB3_df_feature list of features per frame for all noises
 ##          IIB3_break list of features per frame for all breaks
 ##          IIB3_noise list of features per frame for all background noises
 
 # Functions
 give_breaks <- function(frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0, wav_path = "data/wav/", data = IIB3_df_wav){
+  # Goal : Give features of frames from IIB3_df_wav recordings which contain a break sound
+  # Input : list of labeled events
+  #         
+  # Output : Dataframe with features for each frames and if they are condidered as an event or not
   require(dplyr)
   require(tuneR)
   require(seewave)
