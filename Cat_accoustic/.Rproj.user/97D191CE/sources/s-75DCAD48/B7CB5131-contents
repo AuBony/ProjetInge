@@ -472,7 +472,7 @@ for (size in seq(from = range_size[1], to = range_size[2], by = range_size[3] ))
         IIB3_df_ERROR_ovl <- IIB3_df_ERROR_ovl  %>% add_row(
           expansion = expansion,
           size = size,
-          ovl_croc = ovl_croc,
+          ovl_croc = ovl_break,
           ovl_no_event = ovl_no_event,
           Error = ERROR/repet,
           Sens = SENS /repet,
@@ -764,3 +764,147 @@ Error_kibble
 
 ## VISUALISATION ----
 
+# Data (If you have not performed the previous parts)
+#IIB3_df_ERROR_ovl <- read.table(file = "data/error/IIB3_df_ERROR_ovl.txt")
+#IIB3_Error_cat <- read.table(file = "data/error/IIB3_Error_cat.txt")
+#IIB3_Error_kibble <- read.table(file = "data/error/IIB3_Error_kibble.txt")
+
+# Plot
+require(ggplot2)
+require(dplyr)
+require(tidyr)
+require(akima)
+require(rgl)
+require(lazyeval)
+require(plotly)
+  # Cat
+IIB3_Error_cat %>% 
+  select(chat, ERROR_glob, ERROR_chat) %>% 
+  gather("ERROR", "value", -chat) %>% 
+  ggplot(aes(x= as.factor(chat), y = value, fill = ERROR)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle("Loss of prediction quality on an unknown cat") +
+  xlab("")+
+  ylab("")+
+  theme_bw()
+
+IIB3_Error_cat %>% 
+  select(chat, class_1_glob, class_1_chat) %>% 
+  gather("CLASS_1", "value", -chat) %>% 
+  ggplot(aes(x= as.factor(chat), y = value, fill = CLASS_1)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle("Loss of prediction quality on an unknown cat") +
+  xlab("")+
+  ylab("Error Class 1")+
+  theme_minimal()
+
+  # Kibble
+IIB3_Error_kibble %>% 
+  select(kibble, ERROR_glob, ERROR_kibble) %>% 
+  gather("ERROR", "value", -kibble) %>% 
+  ggplot(aes(x= as.factor(kibble), y = value, fill = ERROR)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle("Quality prediction of an unknown kibble (Global Error)") +
+  xlab("")+
+  ylab("Global Error")+
+  theme_minimal()
+
+IIB3_Error_kibble %>% 
+  select(kibble, class_1_glob, class_1_kibble) %>% 
+  gather("CLASS_1", "value", -kibble) %>% 
+  ggplot(aes(x= as.factor(kibble), y = value, fill = CLASS_1)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle("Quality prediction of an unknown kibble (Error on break class)") +
+  xlab("")+
+  ylab("Error Class 1")+
+  theme_minimal()
+
+IIB3_Error_kibble %>% 
+  select(kibble, class_0_glob, class_0_kibble) %>% 
+  gather("CLASS_0", "value", -kibble) %>% 
+  ggplot(aes(x= as.factor(kibble), y = value, fill = CLASS_0)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle("Quality prediction of an unknown kibble (Error on background noise class)") +
+  xlab("")+
+  ylab("Error Class 0")+
+  theme_minimal()
+
+  # Parameters
+#Class_error_0 et class_error_1
+IIB3_df_ERROR_ovl[which.min(IIB3_df_ERROR_ovl$class_error_0), ]
+IIB3_df_ERROR_ovl[which.min(IIB3_df_ERROR_ovl$class_error_1), ]
+
+ggplot(IIB3_df_ERROR_ovl, aes(x = class_error_1)) +
+  geom_histogram(color="black", fill="white", aes(y=..density..), bins = 30) +
+  geom_density(alpha=.2, fill="darkgreen") +
+  xlim(0,1)+
+  theme_bw()
+
+ggplot(IIB3_df_ERROR_ovl, aes(x = class_error_0)) +
+  geom_histogram(color="black", fill="white", aes(y=..density..), bins = 30) +
+  geom_density(alpha=.2, fill="#FF6666") +
+  xlim(0,1)+
+  theme_bw()
+
+#Size x Ovl
+
+plot_ly(IIB3_df_ERROR_ovl, x = ~size, y = ~ovl_croc, z = ~Error)
+
+x <- IIB3_df_ERROR_ovl$size
+y <- IIB3_df_ERROR_ovl$ovl_croc
+z <- IIB3_df_ERROR_ovl$class_error_0
+
+plot_ly(x = x, y = y, z = z, type = "contour") %>% 
+  layout(title = "Class Error 0", xaxis = list(title = "Frame Size"), yaxis = list(title = "Overlap"))
+
+x <- IIB3_df_ERROR_ovl$size
+y <- IIB3_df_ERROR_ovl$ovl
+z <- IIB3_df_ERROR_ovl$class_error_1
+
+plot_ly(x = x, y = y, z = z, type = "contour",
+        contours = list(
+          start = 0,
+          end = 1,
+          size = 0.05
+        )) %>% 
+  layout(title = "Class Error 1", xaxis = list(title = "Window Length"), yaxis = list(title = "Overlap"))
+
+#Size x expansion
+x <- IIB3_df_ERROR_ovl$size
+y <- IIB3_df_ERROR_ovl$expansion
+z <- IIB3_df_ERROR_ovl$class_error_0
+
+plot_ly(x = x, y = y, z = z, type = "contour") %>% 
+  layout(title = "Class Error 0", xaxis = list(title = "Window Length"), yaxis = list(title = "Expansion"))
+
+x <- IIB3_df_ERROR_ovl$size
+y <- IIB3_df_ERROR_ovl$expansion
+z <- IIB3_df_ERROR_ovl$class_error_1
+
+plot_ly(x = x, y = y, z = z, type = "contour",
+        contours = list(
+          start = 0,
+          end = 1,
+          size = 0.05
+        )) %>% 
+  layout(title = "Class Error 1", xaxis = list(title = "Window Length"), yaxis = list(title = "Expansion"))
+
+# Ovl x expansion
+x <- IIB3_df_ERROR_ovl$expansion
+y <- IIB3_df_ERROR_ovl$ovl
+z <- IIB3_df_ERROR_ovl$class_error_0
+
+plot_ly(x = x, y = y, z = z, type = "contour")  %>% 
+  layout(title = "Class Error 0", xaxis = list(title = "Expansion"), yaxis = list(title = "Overlap"))
+
+x <- IIB3_df_ERROR_ovl$expansion
+y <- IIB3_df_ERROR_ovl$ovl
+z <- IIB3_df_ERROR_ovl$class_error_1
+
+plot_ly(x = x, y = y, z = z, type = "contour",
+        contours = list(
+          start = 0,
+          end = 1,
+          size = 0.05
+        )) %>% 
+  layout(title = "Class Error 1", xaxis = list(title = "Expansion"), yaxis = list(title = "Overlap"))
