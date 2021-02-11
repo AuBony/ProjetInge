@@ -6,7 +6,7 @@
 #######################################################################
 
 ## DATASET DF_WAV ----
-## Goal :  Obtain a dataframe containing all the events labelled in the recordings
+## Goal :  Obtain a dataframe containing all the events labeled in the recordings
 ## Input : Txt files per recordings resulting from the audacity labelling process (In each file the start and end of each event labellised)
 ## Output : Dataframe (nb_observation x 8 : 
 ##         filename,
@@ -58,13 +58,13 @@ remove(data, data_modif, data_modif_chat_kibble_duration, data_modif_chat_kibble
 ## FEATURES ----
 ## Goal : Extract features from recordings. Recordings are trimmed into fix-size frames. 
 ##        If an event or a part of an event is within the frame the frame is considered as an event.
-## Input : df_wav (list of labelled events)
+## Input : df_wav (list of labeled events)
 ## Output : IIB2_df_feature list of features per frame for all recordings
 
 # Functions
 give_classif_event <- function(window_length = 0.8, wav_path = "data/wav/", data = IIB2_df_wav){
   # Goal : Trim recordings and get the class (event or no event) for each frame
-  # Input : IIB2_df_wav (list of labelled event)
+  # Input : IIB2_df_wav (list of labeled event)
   # Output : Dataframe with all frames trimmed and if they're considered as an event or not
   
   #Library
@@ -174,7 +174,7 @@ give_feature_2 <- function(wav_path = "data/wav/", data = df_classif){
   return(as.data.frame(df_feature))
 }
 
-# Exectution
+# Execution
 #Here bites and breaks are considered as event VS background noises
 df_classif_event <- give_classif_event(window_length = 0.8, wav_path = "data/wav/", data = IIB2_df_wav)
 IIB2_df_feature_event <- give_feature_2(wav_path = "data/wav/", data = df_classif_event)
@@ -219,7 +219,7 @@ model_event$confusion
 
 ## PARAMETERS : WINDOW LENGTH ----
 ## Goal : Select the best window length value
-## Input : A range of values for Window length. df_wav (list of labelled events).
+## Input : A range of values for Window length. df_wav (list of labeled events).
 ##        You need to execute functions in the part FEATURES.
 ## Output : Error, specificity and sensibility of the model for each value of window length
 
@@ -250,7 +250,7 @@ plot_dfERROR_window <- function(df_ERROR){
 # Function
 give_Error_window_length <- function(from = 0.1, to = 1, by = 0.1, repet = 10,  wav_path = "data/wav/", data = IIB2_df_wav){
   # Goal : Select the best window length value
-  # Input : A range of values for Window length. df_wav (list of labelled events).
+  # Input : A range of values for Window length. df_wav (list of labeled events).
   # Output : Error, specificity and sensibility of the model for each value of window length
   require(dplyr)
   require(randomForest)

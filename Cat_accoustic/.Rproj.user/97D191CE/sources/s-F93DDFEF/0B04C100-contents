@@ -6,7 +6,7 @@
 #######################################################################
 
 ## DATASET DF_WAV ----
-## Goal :  Obtain a dataframe containing all the events labelled in the recordings
+## Goal :  Obtain a dataframe containing all the events labeled in the recordings
 ## Input : Txt files per recordings resulting from the audacity labelling process (In each file the start and end of each event labellised)
 ## Output : Dataframe (nb_observation x 8 : 
 ##         filename,
@@ -54,8 +54,8 @@ IIB1_df_wav$filename <- str_replace(df_txt$filename, ".txt", ".wav")
 remove(data, data_modif, data_modif_chat_kibble_duration, data_modif_chat_kibble,df_txt) 
 
 ## FEATURES ----
-## Goal : Extract features from an event (croc or mach). The entire labelled event is used and NOT cut into frames.
-## Input : df_wav (list of labelled events)
+## Goal : Extract features from an event (croc or mach). The entire labeled event is used and NOT cut into frames.
+## Input : df_wav (list of labeled events)
 ## Output : IIB1_df_feature list of features per event
 
 #Libraries
