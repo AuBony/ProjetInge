@@ -202,7 +202,7 @@ give_no_event <- function(frame_size = 0.1, ovlp_frame = 0, wav_path = "data/wav
     
     no_event <- data %>% filter(filename ==  audio, annotation == "croc") #liste des crocs dans un enregistrement
     
-    #Il n'y a pas de croc dans l'enregistrement
+    #In case there is no break into the recording
     if (dim(no_event)[1] == 0){
       deb <- 0
       audio_wav <- readWave(paste0(wav_path, audio), units = "seconds")
@@ -214,9 +214,9 @@ give_no_event <- function(frame_size = 0.1, ovlp_frame = 0, wav_path = "data/wav
                              from = moment,
                              to = moment + frame_size,
                              units = "seconds") 
-        #Features de la frame
+        #Extraction of spectro properties
         sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
-        #
+        #Data recording.
         df_feature_no_event <- df_feature_no_event %>% add_row(
           filename = audio,
           start = moment,
@@ -242,23 +242,22 @@ give_no_event <- function(frame_size = 0.1, ovlp_frame = 0, wav_path = "data/wav
           ssh = sp$sh)
         
       }
-      
-      
-      #Il y a bien un croc dans l'enregistrement
+
+    #In case there is at least one break into the recording
     }else{
       
       for (l_no_event in 1: nrow(no_event)){
-        #Deb et fin
+        #If there is only one break
         if (l_no_event == 1){
           deb <- 0
           fin <- no_event$start[1]
         }
-        
+        #If there is more than one
         if (l_no_event >1){
           deb <- no_event$end[l_no_event - 1]
           fin <- no_event$start[l_no_event]
         }
-        
+        #The duration of the break has to be longer than the frame size
         if (fin - deb > frame_size){
           for (moment in seq(from =  deb, to = fin - frame_size, by = frame_size * (1-ovlp_frame))){
             
@@ -267,9 +266,9 @@ give_no_event <- function(frame_size = 0.1, ovlp_frame = 0, wav_path = "data/wav
                                  to = moment + frame_size,
                                  units = "seconds") 
             wav_file <- tuneR::normalize(wav_file, center = TRUE)
-            #Features de la frame
+            #Extraction of spectro properties
             sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
-            #
+            #Data recording.
             df_feature_no_event <- df_feature_no_event %>% add_row(
               filename = audio,
               start = moment,
@@ -302,6 +301,28 @@ give_no_event <- function(frame_size = 0.1, ovlp_frame = 0, wav_path = "data/wav
   return(as.data.frame(df_feature_no_event))
 }
 
-# Execution
-croc <- give_croc()
-no_event<- give_no_event(data = df_wav_c)
+# Execution Data Test and Data Train
+IIB3_breaks <- give_breaks(frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0, wav_path = "data/wav/", data = IIB3_df_wav)
+IIB3_no_event<- give_no_event(frame_size = 0.1, ovlp_frame = 0, wav_path = "data/wav/", data = IIB3_df_wav)
+
+
+filename_train <- sample(unique(IIB3_df_wav$filename), 0.7 * length(unique(IIB3_df_wav$filename)))
+
+IIB3_df_train <- IIB3_df_wav %>% filter(filename %in% filename_train)
+IIB3_df_test <- IIB3_df_wav %>%  filter(!(filename %in% filename_train))
+
+IIB3_breaks_train <- give_breaks(frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0, wav_path = "data/wav/", data = IIB3_df_train)
+IIB3_no_event_train <- give_no_event(frame_size = 0.1, ovlp_frame = 0, wav_path = "data/wav/", data = IIB3_df_train)
+
+IIB3_breaks_test <- give_breaks(frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0, wav_path = "data/wav/", data = IIB3_df_test)
+IIB3_no_event_test <- give_no_event(frame_size = 0.1, ovlp_frame = 0, wav_path = "data/wav/", data = IIB3_df_test)
+
+
+IIB3_y_train <- as.factor(c(IIB3_breaks_train$event, IIB3_no_event_train$event))
+IIB3_x_train <- rbind.data.frame(IIB3_breaks_train[, 5:20], IIB3_no_event_train[, 5:20])
+
+IIB3_y_test <- as.factor((c(IIB3_breaks_test$event, IIB3_no_event_test$event)))
+IIB3_x_test <- rbind.data.frame(IIB3_breaks_test[, 5:20], IIB3_no_event_test[, 5:20])
+
+## 
+

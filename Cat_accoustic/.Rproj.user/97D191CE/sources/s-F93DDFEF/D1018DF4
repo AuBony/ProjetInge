@@ -3,7 +3,7 @@
     "path": "J:/Cours/M2_Stat/Projet_inge/ProjetInge/Cat_accoustic/script/II-B-2-Machine_Learning.R",
     "project_path": "script/II-B-2-Machine_Learning.R",
     "type": "r_source",
-    "hash": "0",
+    "hash": "1290361515",
     "contents": "",
     "dirty": false,
     "created": 1612952383919.0,
@@ -11,15 +11,15 @@
     "relative_order": 2,
     "properties": {
         "tempName": "Untitled1",
-        "cursorPosition": "114,27",
-        "scrollLine": "106"
+        "cursorPosition": "148,11",
+        "scrollLine": "103"
     },
-    "folds": "",
+    "folds": "64|96|101|0|\n103|70|174|0|\n",
     "lastKnownWriteTime": 1613036916,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1613036916488,
+    "last_content_update": 1613052530303,
     "read_only": false,
     "read_only_alternatives": []
 }
