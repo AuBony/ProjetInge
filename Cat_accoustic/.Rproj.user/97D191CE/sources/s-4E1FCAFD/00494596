@@ -1,0 +1,25 @@
+{
+    "id": "00494596",
+    "path": "J:/Cours/M2_Stat/Projet_inge/ProjetInge/Cat_accoustic/script/II-B-4-Machine_Learning.R",
+    "project_path": "script/II-B-4-Machine_Learning.R",
+    "type": "r_source",
+    "hash": "3638371304",
+    "contents": "",
+    "dirty": false,
+    "created": 1613119981658.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "tempName": "Untitled1",
+        "cursorPosition": "63,0",
+        "scrollLine": "0"
+    },
+    "folds": "7|18|55|0|\n64|83|183|0|\n185|101|278|0|\n",
+    "lastKnownWriteTime": 1613121368,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1613121368072,
+    "read_only": false,
+    "read_only_alternatives": []
+}
