@@ -106,7 +106,7 @@ IIB4_give_break <- function(shift = 0, wav_path = "data/wav/", data = IIB4_df_wa
     
     print(audio)
     
-    crocs <- data %>% filter(filename ==  audio)
+    crocs <- data %>% filter(filename ==  audio, annotation == 'croc')
     
     #Selection of breaks in a recording  
     for(l_croc in 1:nrow(crocs)){
@@ -321,17 +321,30 @@ IIB4_x_test <- rbind.data.frame(IIB4_break_test[, 5:20], IIB4_no_event_test[, 5:
 ## Goal : Attribute the event or no event class to a frame.
 ## Input : IIB4_df_feature (descriptors for each frame of the recordings)
 ## Output : Predicted class event or breaks for each frame
-##          or breaks and bites VS background noises depending on the df_feature chosen
+##          or breaks VS background noises depending on the df_feature chosen
 
 # Library 
 require(randomForest)
+require(ROCR)
 
-# 
-RF <- randomForest::randomForest(
-  y_train ~ .,
-  data = x_train,
+# Model
+IIB4_model <- randomForest::randomForest(
+  IIB4_y_train ~ .,
+  data = IIB4_x_train,
   ntree = 40, 
   mtry = 4, 
-  x_test = x_test,
-  y_test = y_test,
+  x_test = IIB4_x_test,
+  y_test = IIB4_y_test,
   importance = TRUE)
+
+IIB4_model
+varImpPlot(IIB4_model)
+
+pred_RF <- predict(IIB4_model, newdata = IIB4_x_test, type = "prob")
+pred_class <-  prediction(pred_RF[,2], IIB4_y_test)
+pred.test <- predict(IIB4_model, newdata = IIB4_x_test)
+performance_RF <- performance(pred_class, measure = "tpr",x.measure= "fpr")
+plot(performance_RF, col = 4, lwd = 2)
+abline(0,1)
+
+#saveRDS(IIB4_model, file = 'data/RFmodels/IIB4_model.rds') 
