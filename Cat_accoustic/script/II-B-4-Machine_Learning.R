@@ -6,7 +6,8 @@
 #######################################################################
 
 ## DATASET DF_WAV ----
-## Goal :  Obtain a dataframe containing all the events labelled in the recordings
+## Goal : Obtain a dataframe containing all the events labeled in the recordings
+##        Here we use the second type labeling. We labeled only a part of a break and not the whole break sound 
 ## Input : Txt files per recordings resulting from the audacity labelling process (In each file the start and end of each event labellised)
 ## Output : Dataframe (nb_observation x 8 : 
 ##         filename,
@@ -23,7 +24,7 @@ require(purrr)  # for map(), reduce()
 library(stringr) # for str_replace()
 
 #Data manipulation
-data_path <- "data/labels/labels_1/"
+data_path <- "data/labels/labels_2/"
 files <- dir(data_path, pattern = "*.txt")
 
 data <- data_frame(filename = files) %>%
@@ -48,27 +49,35 @@ data_modif_chat_kibble_duration <- data_modif_chat_kibble %>%  mutate(duration =
 df_txt <- cbind.data.frame(data_frame(id = seq(1, nrow(data_modif_chat_kibble_duration))), data_modif_chat_kibble_duration)
 
 # Modify filename .txt to .wav
-IIB3_df_wav <- df_txt
-IIB3_df_wav$filename <- str_replace(df_txt$filename, ".txt", ".wav")
+IIB4_df_wav <- df_txt
+IIB4_df_wav$filename <- str_replace(df_txt$filename, ".txt", ".wav")
 
 #Cleaning environment
 remove(data, data_modif, data_modif_chat_kibble_duration, data_modif_chat_kibble,df_txt) 
 
-## FEATURES
-## Goal : Extract features from recordings. Each break sound is cut into fix-size frames.
-##        All areas between 2 breaks are considered as background noise and fully sampled.
+## FEATURES ----
+## Goal : Extract features from recordings. Each break sound is sampled.
+##        For background noise sampling, only a fixed number of frame is taken.
 ## Input : df_wav (list of labeled events)
-## Output : IIB3_df_feature list of features per frame for all noises
-##          IIB3_break list of features per frame for all breaks
-##          IIB3_noise list of features per frame for all background noises
+## Output : IIB4_break list of features per frame for all breaks frames
+##          IIB4_noise list of features per frame for all background noises frames
 
-IIB4_give_break <- function(data = df_wav, expansion = 0, wav_path = "cleanwav/" ){
-  # gives features for each break frame
+IIB4_give_break <- function(shift = 0, wav_path = "data/wav/", data = IIB4_df_wav){
+  # Goal : Give features of frames from IIB4_df_wav recordings for break sounds
+  # Input : list of labeled events
+  #         shift : percent of sound duration used to shift.
+  #         If shift > 0, you'll get 3 frames for each sound instead of one.
+  #         Frame 1 : the actual sound
+  #         Frame 2 : the sound shifted by shift% of the duration of the sound on the right
+  #         Frame 3 : the sound shifted by shift% of the duration of the sound on the left
+  # Output : Dataframe with features for each frame.
   
+  #Library
   require(dplyr)
   require(tuneR)
   require(seewave)
   
+  #Initialise the dataframe
   df_feature_event <- tibble(filename = character(),
                              start = numeric(),
                              end = numeric(),
@@ -92,26 +101,27 @@ IIB4_give_break <- function(data = df_wav, expansion = 0, wav_path = "cleanwav/"
                              ssfm = numeric(),
                              ssh = numeric())
   
+  #Browse through the recordings.
   for (audio in unique(data[, "filename"])){
     
     print(audio)
     
     crocs <- data %>% filter(filename ==  audio)
     
-    
-    #Selection d'un événement croc 
+    #Selection of breaks in a recording  
     for(l_croc in 1:nrow(crocs)){
-      if (expansion == 0){
+      
+      #Only one frame per sound
+      if (shift == 0){
         wav_file <- readWave(paste0(wav_path, audio),
                              from = crocs$start[l_croc],
                              to = crocs$end[l_croc],
                              units = "seconds") 
-        wav_file <- tuneR::normalize(wav_file, center = TRUE)
         
-        #Features de la frame
+        #Extraction of spectro properties
         sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = FALSE, norm = FALSE))
         
-        # Ajout des features de la frame
+        #Data recording.
         df_feature_event <- df_feature_event %>% add_row(
           filename = audio,
           start =  crocs$start[l_croc],
@@ -136,8 +146,9 @@ IIB4_give_break <- function(data = df_wav, expansion = 0, wav_path = "cleanwav/"
           ssfm = sp$sfm,
           ssh = sp$sh)
         
-      } else if((crocs[l_croc,"start"] * (1 - expansion) > 0)){
-        e <- crocs[l_croc,"duration"] * expansion
+      # Here shift > 0, we check that the shift to the left does not take us out of the recording
+      } else if((crocs[l_croc,"start"] * (1 - shift) > 0)){
+        e <- crocs[l_croc,"duration"] * shift
         moment <- list(c(crocs[l_croc,"start"] - e, crocs[l_croc, "end"] - e),
                        c(crocs[l_croc,"start"], crocs[l_croc, "end"]),
                        c(crocs[l_croc,"start"] + e, crocs[l_croc, "end"] + e))
@@ -147,12 +158,11 @@ IIB4_give_break <- function(data = df_wav, expansion = 0, wav_path = "cleanwav/"
                                from = moment[[k]][1],
                                to = moment[[k]][2],
                                units = "seconds") 
-          wav_file<- tuneR::normalize(wav_file, center = TRUE)
           
-          #Features de la frame
+          #Extraction of spectro properties
           sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = FALSE, norm = FALSE))
           
-          # Ajout des features de la frame
+          #Data recording.
           df_feature_event <- df_feature_event %>% add_row(
             filename = audio,
             start =  moment[[k]][1],
@@ -183,14 +193,20 @@ IIB4_give_break <- function(data = df_wav, expansion = 0, wav_path = "cleanwav/"
   return(as.data.frame(df_feature_event))
 }
 
-IIB4_give_no_event <- function(data = df_wav, frame_size = 0.02, nb_ech = 5, wav_path = "cleanwav/"){
-  # gives features for each no_event frame
+IIB4_give_no_event <- function(frame_size = 0.02, nb_ech = 5, wav_path = "data/wav/", data = IIB4_df_wav){
+  # Goal : Give features of frames from IIB4_df_wav recordings for background noises
+  # Input : list of labeled events
+  #         frame size, nb_ech : number of frame per part of background noise.
+  # Output : Dataframe with features for each frame.
+  #         End of recordings are not sampled nor too short background noises parts.
   
+  #Library
   require(pracma)
   require(dplyr)
   require(tuneR)
   require(seewave)
   
+  #Initialise the dataframe
   df_feature_no_event <- tibble(filename = character(),
                                 start = numeric(),
                                 end = numeric(),
@@ -213,7 +229,7 @@ IIB4_give_no_event <- function(data = df_wav, frame_size = 0.02, nb_ech = 5, wav
                                 skurtosis = numeric(),
                                 ssfm = numeric(),
                                 ssh = numeric())
-  
+  #Browse into recordings
   for (audio in unique(data[, "filename"])){
     
     print(audio)
@@ -243,7 +259,6 @@ IIB4_give_no_event <- function(data = df_wav, frame_size = 0.02, nb_ech = 5, wav
                                from = moment,
                                to = moment + frame_size,
                                units = "seconds") 
-          wav_file <- tuneR::normalize(wav_file, center = TRUE)
           
           #Features de la frame
           sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))

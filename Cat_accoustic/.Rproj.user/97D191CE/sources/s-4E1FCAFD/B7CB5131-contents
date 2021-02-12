@@ -162,7 +162,7 @@ give_breaks <- function(frame_size = 0.1, ovlp_frame = 0, percent_expansion = 0,
 give_no_event <- function(frame_size = 0.1, ovlp_frame = 0, wav_path = "data/wav/", data = IIB3_df_wav){
   # Goal : Give features of frames from IIB3_df_wav recordings for background noises
   # Input : list of labeled events
-  #         frame size, ovl_frame : percentage of overlap between frames within the same sound,
+  #         frame size, ovl_frame : percentage of overlap between frames within the same sound
   # Output : Dataframe with features for each frame.
   #         End of recordings are not sampled nor too short background noises parts.
   
@@ -195,7 +195,7 @@ give_no_event <- function(frame_size = 0.1, ovlp_frame = 0, wav_path = "data/wav
                                 ssfm =  numeric(),
                                 ssh =  numeric())
   
-  #Selection d'un enregistrement
+  #Browse into recordings
   for (audio in unique(data$filename)){
     
     cat("_")

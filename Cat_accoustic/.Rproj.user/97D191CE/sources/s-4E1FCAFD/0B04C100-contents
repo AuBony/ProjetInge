@@ -7,7 +7,7 @@
 
 ## DATASET DF_WAV ----
 ## Goal :  Obtain a dataframe containing all the events labeled in the recordings
-## Input : Txt files per recordings resulting from the audacity labelling process (In each file the start and end of each event labellised)
+## Input : Txt files per recordings resulting from the audacity labeling process (In each file the start and end of each event labellised)
 ## Output : Dataframe (nb_observation x 8 : 
 ##         filename,
 ##         start of the label, end of the label, duration of the event (end - start),
