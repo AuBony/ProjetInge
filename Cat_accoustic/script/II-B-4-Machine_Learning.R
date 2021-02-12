@@ -260,9 +260,9 @@ IIB4_give_no_event <- function(frame_size = 0.02, nb_ech = 5, wav_path = "data/w
                                to = moment + frame_size,
                                units = "seconds") 
           
-          #Features de la frame
+          #Extraction of spectro properties
           sp <- seewave::specprop(seewave::spec(wav_file@left, f = wav_file@samp.rate, plot = FALSE, scaled = TRUE, norm = FALSE))
-          #
+          #Data recording.
           df_feature_no_event <- df_feature_no_event %>% add_row(
             filename = audio,
             start = moment,
@@ -292,3 +292,46 @@ IIB4_give_no_event <- function(frame_size = 0.02, nb_ech = 5, wav_path = "data/w
   }
   return(as.data.frame(df_feature_no_event))
 }
+
+## DATASET TRAIN TEST ----
+
+filename_train <- sample(unique(IIB4_df_wav$filename), 0.7 * length(unique(IIB4_df_wav$filename)))
+
+IIB4_df_train <- IIB4_df_wav %>% filter(filename %in% filename_train)
+IIB4_df_test <- IIB4_df_wav %>%  filter(!(filename %in% filename_train))
+
+IIB4_break_train <- IIB4_give_break(shift = 0.2, wav_path = "data/wav/", data = IIB4_df_train)
+IIB4_no_event_train <- IIB4_give_no_event(frame_size = 0.02, nb_ech = 10, data = IIB4_df_train)
+
+IIB4_break_test <- IIB4_give_break(shift = 0.2, wav_path = "data/wav/", data = IIB4_df_test)
+IIB4_no_event_test <- IIB4_give_no_event(frame_size = 0.02, nb_ech = 10, data = IIB4_df_test)
+
+# IIB4_break_train <- read.table("data/features/IIB4_break_train.txt")
+# IIB4_no_event_train <- read.table("data/features/IIB4_no_event_train.txt")
+# IIB4_break_test <- read.table("data/features/IIB4_break_test.txt")
+# IIB4_no_event_test<- read.table("data/features/IIB4_no_event_test.txt")
+IIB4_y_train <- as.factor(c(IIB4_break_train$event, IIB4_no_event_train$event))
+IIB4_x_train <- rbind.data.frame(IIB4_break_train[, 5:20], IIB4_no_event_train[, 5:20])
+
+IIB4_y_test <- as.factor((c(IIB4_break_test$event, IIB4_no_event_test$event)))
+IIB4_x_test <- rbind.data.frame(IIB4_break_test[, 5:20], IIB4_no_event_test[, 5:20])
+
+
+## ALGORITHM ----
+## Goal : Attribute the event or no event class to a frame.
+## Input : IIB4_df_feature (descriptors for each frame of the recordings)
+## Output : Predicted class event or breaks for each frame
+##          or breaks and bites VS background noises depending on the df_feature chosen
+
+# Library 
+require(randomForest)
+
+# 
+RF <- randomForest::randomForest(
+  y_train ~ .,
+  data = x_train,
+  ntree = 40, 
+  mtry = 4, 
+  x_test = x_test,
+  y_test = y_test,
+  importance = TRUE)

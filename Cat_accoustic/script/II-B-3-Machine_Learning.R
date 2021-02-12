@@ -326,7 +326,7 @@ IIB3_x_test <- rbind.data.frame(IIB3_breaks_test[, 5:20], IIB3_no_event_test[, 5
 
 ## ALGORITHM ----
 ## Goal : Attribute the event or no event class to a frame.
-## Input : IIB2_df_feature (descriptors for each frame of the recordings)
+## Input : IIB3_df_feature (descriptors for each frame of the recordings)
 ## Output : Predicted class event or breaks for each frame
 ##          or breaks and bites VS background noises depending on the df_feature chosen
 
