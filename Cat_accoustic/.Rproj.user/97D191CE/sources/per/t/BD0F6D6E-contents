@@ -332,6 +332,7 @@ IIB3_x_test <- rbind.data.frame(IIB3_breaks_test[, 5:20], IIB3_no_event_test[, 5
 
 # Df_feature (If you have not run the previous part)
 # IIB3_y_train <- read.table("data/features/IIB3_y_train.txt")
+# IIB3_y_train <- as.factor(IIB3_y_train$x)
 # IIB3_x_train <- read.table("data/features/IIB3_x_train.txt")
 # IIB3_y_test <- read.table("data/features/IIB3_y_test.txt")
 # IIB3_x_test <- read.table("data/features/IIB3_x_test.txt")

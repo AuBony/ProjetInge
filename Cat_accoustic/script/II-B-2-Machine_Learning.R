@@ -308,7 +308,9 @@ give_Error_window_length <- function(from = 0.1, to = 1, by = 0.1, repet = 10,  
 }
 
 # Execution
+# df_Error_window <- read.table(file = "data/error/IIB2_df_Error_window.txt")
 df_Error_window <- give_Error_window_length(from = 0.1, to = 1, by = 0.1, repet = 10, wav_path = "data/wav/", data = IIB2_df_wav)
 
 df_Error_window
 plot_dfERROR_window(df_Error_window)
+

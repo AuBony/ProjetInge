@@ -599,10 +599,10 @@ event_1 <- give_no_event_1(frame_size = 0.1, ovlp_frame = 0, wav_path = "data/wa
 break_2 <- give_break_2(shift = 0, wav_path = "data/wav/", data = df_wav_2)
 event_2 <- give_no_event_2(frame_size = 0.02, nb_ech = 10, wav_path = "data/wav/", data = df_wav_2)
 
-write.table(break_1, file = "data/features/IIB5_break_1.txt")
-write.table(break_2, file = "data/features/IIB5_break_2.txt")
-write.table(event_1, file = "data/features/IIB5_event_1.txt")
-write.table(event_2, file = "data/features/IIB5_event_2.txt")
+# write.table(break_1, file = "data/features/IIB5_break_1.txt")
+# write.table(break_2, file = "data/features/IIB5_break_2.txt")
+# write.table(event_1, file = "data/features/IIB5_event_1.txt")
+# write.table(event_2, file = "data/features/IIB5_event_2.txt")
 
 # If you don't want to execute previous line
 # break_1 <- read.table("data/features/IIB5_break_1.txt")
