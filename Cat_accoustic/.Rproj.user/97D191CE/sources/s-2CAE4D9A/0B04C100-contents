@@ -154,7 +154,6 @@ get.sensitivity <- function(class,pred){
   return((cont.tab[2,2])/(sum(cont.tab[2,])))
 }
 
-
 get.specificity <- function(class,pred){
   cont.tab <- table(class,pred)
   return((cont.tab[1,1])/(sum(cont.tab[1,])))
@@ -168,10 +167,10 @@ n.test <- n-n.train
 ind.train <- sample(1:nrow(IIB1_df_feature),n.train)
 
 x_train <- IIB1_df_feature[ind.train, 4:20]
-y_train <- as.data.frame(IIB1_df_feature[ind.train, "annotation"])
-y_train <- as.factor(y_train$annotation)
+y_train <- IIB1_df_feature[ind.train, "annotation"]
+y_train <- as.factor(y_train)
 x_test <- IIB1_df_feature[-ind.train, 4:20]
-y_test <- as.factor(as.data.frame(IIB1_df_feature[-ind.train, "annotation"])$annotation)
+y_test <- as.factor(IIB1_df_feature[-ind.train, "annotation"])
 
 # Knn algorithm
 pred.test.knn.1 <- class::knn(train= x_train, test=x_test, cl= y_train, k=1)
