@@ -1,6 +1,6 @@
 #######################################################################
 # PROJECT : CAT ACCOUSTIC DATA PROJECT
-# TITLE : IA3bis - Visualisation
+# TITLE : IA3bis - ICA
 # AUTHOR : BONY Audrey & de CROUTTE Anne-Victoire (AGROCAMPUS OUEST)
 # DATE : DECEMBER 2020 TO FEBRURARY 2021
 #######################################################################
